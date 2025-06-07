@@ -1,12 +1,14 @@
-mod command;
+mod packet;
 
-use command::{Command, CommandId, Magic, BUFFER_SIZE};
+use packet::{Packet, CommandId, BUFFER_SIZE};
 
-use deku::DekuContainerWrite;
+use deku::{writer::Writer, DekuWriter};
 use pretty_hex::pretty_hex;
 use tokio::{io::AsyncWriteExt, net::TcpListener};
 
-use std::{error::Error, fmt::format};
+use std::{error::Error, io::Cursor};
+
+use crate::packet::PacketScrambler;
 
 
 #[tokio::main]
@@ -31,27 +33,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // which will allow all of our clients to be processed concurrently.
         tokio::spawn(async move {
             println!("New connection established");
+            let mut scrambler = PacketScrambler { xor_key: 0 };
             // In a loop, read data from the socket and write the data back.
             loop {
                 let mut buf = vec![0; BUFFER_SIZE as usize];
-                let command = Command::from_stream(&mut buf, &mut socket).await;
+                let command = Packet::from_stream(&mut buf, &mut socket).await;
                 if let Err(e) = command {
                     eprintln!("Error reading command: {}:\n\t{}", e, pretty_hex(&buf));
                     break;
                 }
 
                 // Process the command here
-                let command = command.unwrap();
-                println!("<<< Recv command {:?}:\n\t{}\n", command.magic.id, pretty_hex(&command.payload));
+                let mut packet = command.unwrap();
+                scrambler.scramble(&mut packet);
+                println!("<<< Recv command {:?}:\n\t{}\n", packet.command_id, pretty_hex(&packet.payload));
 
                 let mut send_result = None;
 
-                if command.magic.id == CommandId::AcCmdCLLogin {
-                    send_result = Some(send_command(&mut buf, &mut socket, &mut Command {
-                        magic: Magic {
-                            id: CommandId::AcCmdCLLoginOK,
-                            length: 0,
-                        },
+                if packet.command_id == CommandId::AcCmdCLLogin {
+                    send_result = Some(send_command(&mut buf, &mut socket, &mut Packet {
+                        command_id: CommandId::AcCmdCLLoginOK,
                         payload: vec![
                             0x2E, 0xC3, 0x87, 0xD6, 0x31, 0xD3, 0xDB, 0x01,  0x94, 0xA7, 0x0C, 0x00, 0xE8, 0xE2, 0x06, 0x00,
                             0x72, 0x67, 0x6E, 0x74, 0x00, 0x57, 0x65, 0x6C,  0x63, 0x6F, 0x6D, 0x65, 0x20, 0x74, 0x6F, 0x20,
@@ -108,12 +109,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }).await);
                 }
 
-                if command.magic.id == CommandId::AcCmdCLShowInventory {
-                    send_result = Some(send_command(&mut buf, &mut socket, &mut Command {
-                        magic: Magic {
-                            id: CommandId::AcCmdCLShowInventoryOK,
-                            length: 0,
-                        },
+                if packet.command_id == CommandId::AcCmdCLShowInventory {
+                    send_result = Some(send_command(&mut buf, &mut socket, &mut Packet {
+                        command_id: CommandId::AcCmdCLShowInventoryOK,
                         payload: vec![
                             0x1F, 0x4A, 0x75, 0x00, 0x02, 0x4A, 0x75, 0x00,  0x00, 0xB8, 0x1B, 0x01, 0x00, 0x01, 0x00, 0x00,
                             0x00, 0xB0, 0x9A, 0x00, 0x02, 0xB0, 0x9A, 0x00,  0x00, 0xB8, 0x1B, 0x01, 0x00, 0x01, 0x00, 0x00,
@@ -151,12 +149,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }).await);
                 }
 
-                if command.magic.id == CommandId::AcCmdCLRequestLeagueInfo {
-                    send_result = Some(send_command(&mut buf, &mut socket, &mut Command {
-                        magic: Magic {
-                            id: CommandId::AcCmdCLRequestLeagueInfoOK,
-                            length: 0,
-                        },
+                if packet.command_id == CommandId::AcCmdCLRequestLeagueInfo {
+                    send_result = Some(send_command(&mut buf, &mut socket, &mut Packet {
+                        command_id: CommandId::AcCmdCLRequestLeagueInfoOK,
                         payload: vec![
                             0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                             0x00, 0x00, 0x00, 0x00, 0x12, 0x01, 0x01, 0x01,  0x00, 0x00, 0x34, 0x01, 0x00
@@ -174,10 +169,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 
-async fn send_command(buf: &mut [u8], socket: &mut tokio::net::TcpStream, command: &mut Command) -> Result<(), String> {
-    command.magic.length = (size_of::<u32>()+command.payload.len()) as u16;
-    command.to_slice(buf).map_err(|err| format!("Error serializing command: {}", err))?;
-    socket.write(&buf[0..(command.magic.length as usize)]).await.map_err(|err| format!("Error sending command: {:?}", err))?;
-    println!(">>> Sent command {:?}:\n\t{}\n\n", command.magic.id, pretty_hex(&command.payload));
+async fn send_command(buf: &mut [u8], socket: &mut tokio::net::TcpStream, command: &mut Packet) -> Result<(), String> {
+    // Outgoing commands aren't scrambled, so we can write directly to the buffer
+    let written_bytes = {
+        let mut cursor = Cursor::new(&mut buf[..]);
+        let mut writer = Writer::new(&mut cursor);
+        command.to_writer(&mut writer, ()).map_err(|err| format!("Error serializing command: {}", err))?;
+        writer.bits_written/8
+    };
+    let written_bytes = &buf[0..written_bytes];
+    socket.write(&written_bytes).await.map_err(|err| format!("Error sending command: {:?}", err))?;
+    println!(">>> Sent command {:?}:\n\t{}\n\n", command.command_id, pretty_hex(&command.payload));
     Ok(())
 }

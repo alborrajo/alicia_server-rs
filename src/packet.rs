@@ -1,6 +1,8 @@
+use std::borrow::Cow;
 use std::io::{Cursor, Read, Seek, Write};
 use std::vec;
 
+use deku::ctx::ReadExact;
 use deku::prelude::*;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
@@ -13,6 +15,105 @@ pub const BUFFER_SIZE: u16 = 4096;
 
 // A constant buffer jumbo for message magic.
 const BUFFER_JUMBO: u16 = 16384;
+
+// XOR scrambling constants.
+const XOR_MULTIPLIER: u32 = 0xdff7f7db;
+const XOR_CONTROL: u32 = 0xa20191cb;
+
+#[derive(Debug)]
+pub struct PacketScrambler {
+    pub xor_key: u32
+}
+impl PacketScrambler {
+    pub fn scramble(&mut self, packet: &mut Packet) {
+        for idx in 0..packet.payload.len() {
+            let shift = idx % 4;
+            packet.payload[idx] ^= self.xor_key.to_le_bytes()[shift];
+        }
+        // Rotate xor key
+        self.xor_key = self.xor_key.wrapping_mul(XOR_MULTIPLIER).wrapping_add(XOR_CONTROL);
+    }
+}
+
+#[derive(Debug)]
+pub struct Packet {
+    pub command_id: CommandId,
+    pub payload: Vec<u8>,
+}
+impl Packet {
+    pub async fn from_stream(buf: &mut [u8], stream: &mut TcpStream) -> Result<Packet, &'static str> {
+        let result = stream.read_exact(&mut buf[0..size_of::<u32>()]).await;
+        if result.is_err() || result.is_ok_and(|n| n == 0) {
+            return Err("Failed to read command magic");
+        }
+        let mut cursor = Cursor::new(buf);
+        let mut reader = Reader::new(&mut cursor);
+        let magic = u32::from_reader_with_ctx(&mut reader, ()).map_err(|_| "Failed to read command magic")?;
+        let (command_id, length) = decode_magic(magic).map_err(|_| "Invalid command magic")?;
+        if length == size_of::<u32>() as u16 {
+            Ok(Packet { 
+                command_id, 
+                payload: vec![]
+            })
+        } else {
+            let mut payload = vec![0u8; length as usize - size_of::<u32>()];
+            let result = stream.read_exact(&mut payload).await;
+            if result.is_err() || result.is_ok_and(|n| n == 0) {
+                return Err("Failed to read command payload");
+            }
+            Ok(Packet {
+                command_id,
+                payload
+            })
+        }
+    }
+}
+impl DekuWriter<()> for Packet {
+    fn to_writer<W:Write+Seek>(&self,writer: &mut Writer<W>, ctx: ()) -> Result<(),DekuError> {
+        encode_magic(self.command_id, (size_of::<u32>()+self.payload.len()) as u16).to_writer(writer, ctx)?;
+        self.payload.to_writer(writer, ctx)
+    }
+}
+impl<'a> DekuReader<'a, ()> for Packet {
+    fn from_reader_with_ctx<R:Read+Seek>(reader: &mut Reader<R>,ctx:()) -> Result<Self,DekuError>where Self:Sized {
+        let value = u32::from_reader_with_ctx(reader, ctx)?;
+        let (command_id, length) = decode_magic(value).map_err(|_| deku::DekuError::Parse(Cow::from("Invalid command magic")))?;
+        let payload = Vec::from_reader_with_ctx(reader, ReadExact(length as usize - size_of::<u32>()))?;
+        Ok(Packet {
+            command_id,
+            payload,
+        })
+    }
+}
+
+fn encode_magic(command_id: CommandId, length: u16) -> u32 {
+    let id: u16 = BUFFER_JUMBO & 0xFFFF | (command_id as u16) & 0xFFFF;
+    let length: u32 = (BUFFER_SIZE as u32) << 16 | length as u32;
+
+    let mut encoded = length;
+    encoded = (encoded & 0x3FFF | encoded << 14) & 0xFFFF;
+    encoded = ((encoded & 0xF | 0xFF80) << 8 | (length >> 4) & 0xFF | encoded & 0xF000) & 0xFFFF;
+    encoded |= (encoded ^ id as u32) << 16;
+
+    encoded
+}
+
+fn decode_magic(magic: u32) -> Result<(CommandId, u16), &'static str> {
+    let mut length = 0;
+    if (magic & 1 << 15) != 0
+    {
+        let section: u16 = (magic & 0x3FFF) as u16;
+        length = ((magic as u16 & 0xFF) << 4) | ((section >> 8) & 0xF) | (section & 0xF000);
+    }
+
+    let first_two_bytes: u16 = (magic & 0xFFFF) as u16;
+    let second_two_bytes: u16 = ((magic >> 16) & 0xFFFF) as u16;
+    let xor_result: u16 = first_two_bytes ^ second_two_bytes;
+    let command_id = unsafe { std::mem::transmute::<_, CommandId>((!(xor_result & 0xC000)) & xor_result) };
+
+    Ok((command_id, length))
+}
+
 
 #[derive(DekuRead, DekuWrite, Debug, PartialEq, Copy, Clone)]
 #[repr(u16)]
@@ -663,81 +764,28 @@ pub enum CommandId {
     AcCmdCLEnterRoomQuickStop = 0x1f1,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub struct Magic {
-    pub id: CommandId,
-    pub length: u16,
-}
-impl DekuWriter<()> for Magic {
-    fn to_writer<W:Write+Seek>(&self,writer: &mut Writer<W>, ctx: ()) -> Result<(),DekuError> {
-        let id: u16 = BUFFER_JUMBO & 0xFFFF | (self.id as u16) & 0xFFFF;
-        let length: u32 = (BUFFER_SIZE as u32) << 16 | self.length as u32;
-
-        let mut encoded = length;
-        encoded = (encoded & 0x3FFF | encoded << 14) & 0xFFFF;
-        encoded = ((encoded & 0xF | 0xFF80) << 8 | (length >> 4) & 0xFF | encoded & 0xF000) & 0xFFFF;
-        encoded |= (encoded ^ id as u32) << 16;
-
-        u32::to_writer(&encoded, writer, ctx)
-    }
-}
-impl<'a> DekuReader<'a, ()> for Magic {
-    fn from_reader_with_ctx<R:Read+Seek>(reader: &mut Reader<R>,ctx:()) -> Result<Self,DekuError>where Self:Sized {
-        let value = u32::from_reader_with_ctx(reader, ctx)?;
-
-        let mut length = 0;
-        if (value & 1 << 15) != 0
-        {
-            let section: u16 = (value & 0x3FFF) as u16;
-            length = ((value as u16 & 0xFF) << 4) | ((section >> 8) & 0xF) | (section & 0xF000);
-        }
-
-        let first_two_bytes: u16 = (value & 0xFFFF) as u16;
-        let second_two_bytes: u16 = ((value >> 16) & 0xFFFF) as u16;
-        let xor_result: u16 = first_two_bytes ^ second_two_bytes;
-        let id = unsafe { std::mem::transmute::<_, CommandId>((!(xor_result & 0xC000)) & xor_result) };
-
-        Ok(Magic { id, length })
-    }
-}
-
-#[derive(DekuRead, DekuWrite, Debug)]
-pub struct Command {
-    pub magic: Magic,
-    #[deku(count = "magic.length - 4")]
-    pub payload: Vec<u8>,
-}
-impl Command {
-    pub async fn from_stream(buf: &mut [u8], stream: &mut TcpStream) -> Result<Command, &'static str> {
-        let result = stream.read_exact(&mut buf[0..size_of::<u32>()]).await;
-        if result.is_err() || result.is_ok_and(|n| n == 0) {
-            return Err("Failed to read command magic");
-        }
-        let mut cursor = Cursor::new(buf);
-        let mut reader = Reader::new(&mut cursor);
-        let magic = Magic::from_reader_with_ctx(&mut reader, ()).map_err(|_| "Invalid command magic")?;
-        let payload = if magic.length == size_of::<u32>() as u16 {
-            Ok(vec![])
-        } else {
-            let mut payload = vec![0u8; magic.length as usize - size_of::<u32>()];
-            let result = stream.read_exact(&mut payload).await;
-            if result.is_err() || result.is_ok_and(|n| n == 0) {
-                return Err("Failed to read command payload");
-            }
-            Ok(payload)
-        }?;
-        Ok(Command {
-            magic,
-            payload
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use pretty_hex::pretty_hex;
 
     use super::*;
+
+    #[test]
+    fn test_command_deserialization() {
+        let mut cursor = Cursor::new(AO_STREAM_DUMP);
+        let mut reader = Reader::new(&mut cursor);
+        loop {
+            let result = Packet::from_reader_with_ctx(&mut reader, ());
+            if let Ok(command) = result {
+                // We don't use the packet scrambler since this capture's data is from a server without encryption.
+                println!("Read Command {:?}:\n\t{}\n{:?}\n", command.command_id, pretty_hex(&command.payload), &command.payload);
+            } else {
+                println!("Failed to read command: {:?}", result);
+                break;
+            }
+        }
+        assert_eq!(cursor.position() as usize, AO_STREAM_DUMP.len(), "Did not read the entire stream dump");
+    }
 
     const AO_STREAM_DUMP: [u8; 2036] = [
         0x2d, 0xc7, 0x25, 0xc7, 0xc2, 0x08, 0x40, 0xa7, 0xf2, 0xb7, 0xda, 0x01, 0x94, 0xa7, 0x0c, 0x00, 
@@ -869,19 +917,4 @@ mod tests {
         0x00, 0x00, 0x03, 0x06, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0xcb, 0x0e, 0xc8, 0xe8, 0xe2, 0x06, 
         0x00, 0x01, 0x00, 0x00
     ];
-
-    #[test]
-    fn test_command_deserialization() {
-        let mut cursor = Cursor::new(AO_STREAM_DUMP);
-        loop {
-            let result = Command::from_reader((&mut cursor, 0));
-            if let Ok(result) = result {
-                println!("Read Command {:?}:\n\t{}\n{:?}\n", result.1.magic.id, pretty_hex(&result.1.payload), &result.1.payload);
-            } else {
-                println!("Failed to read command: {:?}", result);
-                break;
-            }
-        }
-        assert_eq!(cursor.position() as usize, AO_STREAM_DUMP.len(), "Did not read the entire stream dump");
-    }
 }
