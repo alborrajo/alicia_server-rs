@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+        "aloysetech.hex-array-formatter",
+        "amoekesch.hex-array-to-ascii",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb",
+        "rust-lang.rust-analyzer"
+    ]
+}
