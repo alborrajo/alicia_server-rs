@@ -11,7 +11,9 @@ use tokio::net::TcpStream;
 // A constant buffer size for message magic.
 // The maximum size of message payload is 4092 bytes.
 // The extra 4 bytes are reserved for message magic.
-pub const BUFFER_SIZE: u16 = 4096;
+pub const MAGIC_SIZE: usize = size_of::<u32>();
+pub const MAX_PAYLOAD_SIZE: usize = 4092;
+pub const MAX_BUFFER_SIZE: u16 = (MAGIC_SIZE+MAX_PAYLOAD_SIZE) as u16;
 
 // A constant buffer jumbo for message magic.
 const BUFFER_JUMBO: u16 = 16384;
@@ -42,7 +44,7 @@ pub struct Packet {
 }
 impl Packet {
     pub async fn from_stream(buf: &mut [u8], stream: &mut TcpStream) -> Result<Packet, &'static str> {
-        let result = stream.read_exact(&mut buf[0..size_of::<u32>()]).await;
+        let result = stream.read_exact(&mut buf[0..MAGIC_SIZE]).await;
         if result.is_err() || result.is_ok_and(|n| n == 0) {
             return Err("Failed to read command magic");
         }
@@ -50,13 +52,13 @@ impl Packet {
         let mut reader = Reader::new(&mut cursor);
         let magic = u32::from_reader_with_ctx(&mut reader, ()).map_err(|_| "Failed to read command magic")?;
         let (command_id, length) = decode_magic(magic).map_err(|_| "Invalid command magic")?;
-        if length == size_of::<u32>() as u16 {
+        if length == MAGIC_SIZE as u16 {
             Ok(Packet { 
                 command_id, 
                 payload: vec![]
             })
         } else {
-            let mut payload = vec![0u8; length as usize - size_of::<u32>()];
+            let mut payload = vec![0u8; length as usize - MAGIC_SIZE];
             let result = stream.read_exact(&mut payload).await;
             if result.is_err() || result.is_ok_and(|n| n == 0) {
                 return Err("Failed to read command payload");
@@ -70,7 +72,7 @@ impl Packet {
 }
 impl DekuWriter<()> for Packet {
     fn to_writer<W:Write+Seek>(&self,writer: &mut Writer<W>, ctx: ()) -> Result<(),DekuError> {
-        encode_magic(self.command_id, (size_of::<u32>()+self.payload.len()) as u16).to_writer(writer, ctx)?;
+        encode_magic(self.command_id, (MAGIC_SIZE+self.payload.len()) as u16).to_writer(writer, ctx)?;
         self.payload.to_writer(writer, ctx)
     }
 }
@@ -78,7 +80,7 @@ impl<'a> DekuReader<'a, ()> for Packet {
     fn from_reader_with_ctx<R:Read+Seek>(reader: &mut Reader<R>,ctx:()) -> Result<Self,DekuError>where Self:Sized {
         let value = u32::from_reader_with_ctx(reader, ctx)?;
         let (command_id, length) = decode_magic(value).map_err(|_| deku::DekuError::Parse(Cow::from("Invalid command magic")))?;
-        let payload = Vec::from_reader_with_ctx(reader, ReadExact(length as usize - size_of::<u32>()))?;
+        let payload = Vec::from_reader_with_ctx(reader, ReadExact(length as usize - MAGIC_SIZE))?;
         Ok(Packet {
             command_id,
             payload,
@@ -88,7 +90,7 @@ impl<'a> DekuReader<'a, ()> for Packet {
 
 fn encode_magic(command_id: CommandId, length: u16) -> u32 {
     let id: u16 = BUFFER_JUMBO & 0xFFFF | (command_id as u16) & 0xFFFF;
-    let length: u32 = (BUFFER_SIZE as u32) << 16 | length as u32;
+    let length: u32 = (MAX_BUFFER_SIZE as u32) << 16 | length as u32;
 
     let mut encoded = length;
     encoded = (encoded & 0x3FFF | encoded << 14) & 0xFFFF;
@@ -118,6 +120,7 @@ fn decode_magic(magic: u32) -> Result<(CommandId, u16), &'static str> {
 #[derive(DekuRead, DekuWrite, Debug, PartialEq, Copy, Clone)]
 #[repr(u16)]
 #[deku(id_type = "u16")]
+#[allow(non_camel_case_types)]
 pub enum CommandId {
     AcCmdCLRequestLeagueInfo = 0x376,
     AcCmdCLPCInfoLog = 0x46c,
@@ -768,17 +771,24 @@ pub enum CommandId {
 mod tests {
     use pretty_hex::pretty_hex;
 
+    use crate::commands::{lobby::login::{Login, LoginCancel, LoginOk}, Command};
+
     use super::*;
 
     #[test]
-    fn test_command_deserialization() {
+    fn test_packet_deserialization() {
         let mut cursor = Cursor::new(AO_STREAM_DUMP);
         let mut reader = Reader::new(&mut cursor);
         loop {
             let result = Packet::from_reader_with_ctx(&mut reader, ());
-            if let Ok(command) = result {
+            if let Ok(packet) = result {
                 // We don't use the packet scrambler since this capture's data is from a server without encryption.
-                println!("Read Command {:?}:\n\t{}\n{:?}\n", command.command_id, pretty_hex(&command.payload), &command.payload);
+                match packet.command_id {
+                    CommandId::AcCmdCLLogin => println!("Read Command {:?}:\n{:#?}\n", packet.command_id, Login::try_from(&packet).unwrap()),
+                    CommandId::AcCmdCLLoginCancel => println!("Read Command {:?}:\n{:#?}\n", packet.command_id, LoginCancel::try_from(&packet).unwrap()),
+                    CommandId::AcCmdCLLoginOK => println!("Read Command {:?}:\n{:#?}\n", packet.command_id, LoginOk::try_from(&packet).unwrap()),
+                    _ => println!("Read Command {:?}:\n\t{}\n{:?}\n", packet.command_id, pretty_hex(&packet.payload), &packet.payload)
+                };
             } else {
                 println!("Failed to read command: {:?}", result);
                 break;
