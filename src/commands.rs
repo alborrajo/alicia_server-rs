@@ -166,7 +166,10 @@ mod tests {
             ],
         };
         let command = LoginOk::try_from(&packet).unwrap();
-        println!("Deserialized command {:?}:\n{:#?}\n", packet.command_id, command);
+        println!(
+            "Deserialized command {:?}:\n{:#?}\n",
+            packet.command_id, command
+        );
         assert_eq!(command.nick_name.as_c_str(), c"rgnt");
 
         let packet2: Packet = command.try_into().unwrap();

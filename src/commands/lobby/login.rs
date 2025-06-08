@@ -1,8 +1,26 @@
-use std::{ffi::CString,  io::{Read, Write, Seek}};
+use std::{
+    ffi::CString,
+    io::{Read, Seek, Write},
+};
 
-use deku::{reader::Reader, writer::Writer, DekuError, DekuRead, DekuReader, DekuWrite, DekuWriter};
+use deku::{
+    DekuError, DekuRead, DekuReader, DekuWrite, DekuWriter, reader::Reader, writer::Writer,
+};
 
-use crate::{commands::LengthPrefixedVec, entities::{character::{AgeGroup, AnotherPlayerRelatedThing, Character, Gender, PlayerRelatedThing, YetAnotherPlayerRelatedThing}, horse::Horse, item::Item, win_file_time::WinFileTime}, impl_command_traits, packet::CommandId};
+use crate::{
+    commands::LengthPrefixedVec,
+    entities::{
+        character::{
+            AgeGroup, AnotherPlayerRelatedThing, Character, Gender, PlayerRelatedThing,
+            YetAnotherPlayerRelatedThing,
+        },
+        horse::Horse,
+        item::Item,
+        win_file_time::WinFileTime,
+    },
+    impl_command_traits,
+    packet::CommandId,
+};
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct Login {
@@ -11,21 +29,20 @@ pub struct Login {
     pub login_id: CString,
     pub member_no: u32,
     pub auth_key: CString,
-    pub val0: u8
+    pub val0: u8,
 }
 impl_command_traits!(Login, CommandId::AcCmdCLLogin);
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(id_type = "u8")]
 #[repr(u8)]
-pub enum LoginCancelReason
-{
-  InvalidUser = 1,
-  Duplicated = 2,
-  InvalidVersion = 3,
-  InvalidEquipment = 4,
-  InvalidLoginId = 5,
-  DisconnectYourself = 6,
+pub enum LoginCancelReason {
+    InvalidUser = 1,
+    Duplicated = 2,
+    InvalidVersion = 3,
+    InvalidEquipment = 4,
+    InvalidLoginId = 5,
+    DisconnectYourself = 6,
 }
 impl Default for LoginCancelReason {
     fn default() -> Self {
@@ -35,7 +52,7 @@ impl Default for LoginCancelReason {
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct LoginCancel {
-    pub reason: LoginCancelReason
+    pub reason: LoginCancelReason,
 }
 impl_command_traits!(LoginCancel, CommandId::AcCmdCLLoginCancel);
 
@@ -99,7 +116,7 @@ pub struct LoginOk {
     pub val19: u32,
     pub val20: u32,
 
-    pub val21: YetAnotherPlayerRelatedThing
+    pub val21: YetAnotherPlayerRelatedThing,
 }
 impl_command_traits!(LoginOk, CommandId::AcCmdCLLoginOK);
 
@@ -111,7 +128,13 @@ pub struct Options {
     // TODO: GamepadOptions
 }
 impl<'a> DekuReader<'a> for Options {
-    fn from_reader_with_ctx<R: Read+Seek>(reader: &mut Reader<R>,ctx: ()) -> Result<Self,DekuError> where Self:Sized {
+    fn from_reader_with_ctx<R: Read + Seek>(
+        reader: &mut Reader<R>,
+        ctx: (),
+    ) -> Result<Self, DekuError>
+    where
+        Self: Sized,
+    {
         let mut options = Options::default();
         let option_type_mask = u32::from_reader_with_ctx(reader, ctx)?;
         if option_type_mask & 1 != 0 {
@@ -128,17 +151,29 @@ impl<'a> DekuReader<'a> for Options {
     }
 }
 impl DekuWriter for Options {
-    fn to_writer<W: Write+Seek>(&self,writer: &mut Writer<W>,ctx: ()) -> Result<(),DekuError> {
+    fn to_writer<W: Write + Seek>(&self, writer: &mut Writer<W>, ctx: ()) -> Result<(), DekuError> {
         let mut option_type_mask = 0;
-        if self.keyboard_options.is_some() { option_type_mask |= 1 };
-        if self.macro_options.is_some() { option_type_mask |= 1 << 3 };
-        if self.value_options.is_some() { option_type_mask |= 1 << 4 };
+        if self.keyboard_options.is_some() {
+            option_type_mask |= 1
+        };
+        if self.macro_options.is_some() {
+            option_type_mask |= 1 << 3
+        };
+        if self.value_options.is_some() {
+            option_type_mask |= 1 << 4
+        };
         // TODO: GamepadOptions
         option_type_mask.to_writer(writer, ctx)?;
 
-        if let Some(ref keyboard_options) = self.keyboard_options { keyboard_options.to_writer(writer, ctx)?; }
-        if let Some(ref macro_options) = self.macro_options { macro_options.to_writer(writer, ctx)?; }
-        if let Some(ref value_options) = self.value_options { value_options.to_writer(writer, ctx)?; }
+        if let Some(ref keyboard_options) = self.keyboard_options {
+            keyboard_options.to_writer(writer, ctx)?;
+        }
+        if let Some(ref macro_options) = self.macro_options {
+            macro_options.to_writer(writer, ctx)?;
+        }
+        if let Some(ref value_options) = self.value_options {
+            value_options.to_writer(writer, ctx)?;
+        }
         // TODO: GamepadOptions
         Ok(())
     }
@@ -146,42 +181,42 @@ impl DekuWriter for Options {
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct KeyboardOptions {
-    pub bindings: LengthPrefixedVec<1, KeyboardOption>
+    pub bindings: LengthPrefixedVec<1, KeyboardOption>,
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct KeyboardOption {
     pub index: u16,
     pub r#type: u8,
-    pub key: u8
+    pub key: u8,
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct MacroOptions {
-    pub macros: [CString; 8]
+    pub macros: [CString; 8],
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct Val5 {
     pub val0: u16,
-    pub val1: LengthPrefixedVec<1, Val5Val1>
+    pub val1: LengthPrefixedVec<1, Val5Val1>,
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct Val5Val1 {
     pub val0: u32,
-    pub val1: u32
+    pub val1: u32,
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct Val7 {
-    pub values: LengthPrefixedVec<1, Val7Value>
+    pub values: LengthPrefixedVec<1, Val7Value>,
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct Val7Value {
     pub val0: u32,
-    pub val1: u32
+    pub val1: u32,
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
@@ -200,23 +235,23 @@ pub struct Val11 {
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct Val12 {
-    pub values: LengthPrefixedVec<1, Val12Value>
+    pub values: LengthPrefixedVec<1, Val12Value>,
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct Val12Value {
     pub val0: u8,
-    pub val1: u8
+    pub val1: u8,
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct Val13 {
-    pub values: LengthPrefixedVec<1, Val12Value>
+    pub values: LengthPrefixedVec<1, Val12Value>,
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct Val13Value {
     pub val0: u16,
     pub val1: u8,
-    pub val2: u8
+    pub val2: u8,
 }
