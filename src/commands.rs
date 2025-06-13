@@ -1,6 +1,9 @@
 #![macro_use]
 
-use std::io::{Read, Seek, Write};
+use std::{
+    fmt::Debug,
+    io::{Read, Seek, Write},
+};
 
 use deku::{DekuReader, DekuWriter, error::DekuError, reader::Reader, writer::Writer};
 
@@ -9,7 +12,11 @@ use crate::packet::{CommandId, Packet};
 pub mod lobby;
 
 pub trait Command:
-    for<'a> DekuReader<'a> + DekuWriter + for<'b> TryFrom<&'b Packet> + TryInto<Packet>
+    for<'a> DekuReader<'a>
+    + DekuWriter
+    + for<'b> TryFrom<&'b Packet, Error = deku::error::DekuError>
+    + TryInto<Packet, Error = deku::error::DekuError>
+    + Debug
 {
     const ID: CommandId;
 }
@@ -23,13 +30,14 @@ macro_rules! impl_command_traits {
         impl std::convert::TryFrom<&crate::packet::Packet> for $t {
             type Error = deku::DekuError;
             fn try_from(packet: &crate::packet::Packet) -> Result<Self, Self::Error> {
-                if packet.command_id != <Self as crate::commands::Command>::ID {
-                    return Err(DekuError::InvalidParam(
+                if packet.command_id != <$t as crate::commands::Command>::ID {
+                    return Err(deku::DekuError::InvalidParam(
                         "Attempted to convert a packet with a wrong command id".into(),
                     ));
                 }
                 let mut cursor = std::io::Cursor::new(&packet.payload);
                 let mut reader = deku::reader::Reader::new(&mut cursor);
+                use deku::DekuReader;
                 Self::from_reader_with_ctx(&mut reader, ())
             }
         }
@@ -40,11 +48,12 @@ macro_rules! impl_command_traits {
                 let bytes_written = {
                     let mut cursor = std::io::Cursor::new(&mut buf[..]);
                     let mut writer = deku::writer::Writer::new(&mut cursor);
+                    use deku::DekuWriter;
                     self.to_writer(&mut writer, ())?;
                     writer.bits_written / 8
                 };
                 Ok(crate::packet::Packet {
-                    command_id: <Self as crate::commands::Command>::ID,
+                    command_id: <$t as crate::commands::Command>::ID,
                     payload: buf[0..bytes_written].to_vec(),
                 })
             }

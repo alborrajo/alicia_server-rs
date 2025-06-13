@@ -346,11 +346,8 @@ impl CommandHandler for LoginHandler {
                 val3: 0,
             },
         };
-        let packet = response
-            .try_into()
-            .map_err(|e| format!("Failed to serialize response: {:?}", e))?;
         session
-            .send_packet(&packet)
+            .send_command(response)
             .await
             .map_err(|e| format!("Failed to send response: {:?}", e))
     }

@@ -48,19 +48,17 @@ pub struct Packet {
     pub payload: Vec<u8>,
 }
 impl Packet {
-    pub async fn from_stream(
-        buf: &mut [u8],
-        stream: &mut TcpStream,
-    ) -> Result<Packet, &'static str> {
+    pub async fn from_stream(buf: &mut [u8], stream: &mut TcpStream) -> Result<Packet, String> {
         let result = stream.read_exact(&mut buf[0..MAGIC_SIZE]).await;
         if result.is_err() || result.is_ok_and(|n| n == 0) {
-            return Err("Failed to read command magic");
+            return Err("Failed to read command magic from stream".into());
         }
         let mut cursor = Cursor::new(buf);
         let mut reader = Reader::new(&mut cursor);
         let magic = u32::from_reader_with_ctx(&mut reader, ())
-            .map_err(|_| "Failed to read command magic")?;
-        let (command_id, length) = decode_magic(magic).map_err(|_| "Invalid command magic")?;
+            .map_err(|e| format!("Failed to read command magic from buffer: {:?}", e))?;
+        let (command_id, length) =
+            decode_magic(magic).map_err(|e| format!("Invalid command magic: {}", e))?;
         if length == MAGIC_SIZE as u16 {
             Ok(Packet {
                 command_id,
@@ -70,7 +68,7 @@ impl Packet {
             let mut payload = vec![0u8; length as usize - MAGIC_SIZE];
             let result = stream.read_exact(&mut payload).await;
             if result.is_err() || result.is_ok_and(|n| n == 0) {
-                return Err("Failed to read command payload");
+                return Err("Failed to read command payload".into());
             }
             Ok(Packet {
                 command_id,
