@@ -33,6 +33,28 @@ impl CommandHandler for LoginHandler {
         session: &mut Session,
         command: &Self::CommandType,
     ) -> Result<(), String> {
+        session.account = Some(Account {
+            member_no: command.member_no,
+            login_id: command
+                .login_id
+                .to_str()
+                .map_err(|e| format!("Couldn't read login id"))?
+                .to_owned(),
+            auth_key: command
+                .auth_key
+                .to_str()
+                .map_err(|e| format!("Couldn't read auth key"))?
+                .to_owned(),
+        });
+        // TODO: Remove
+        println!(
+            "Logged in as {}",
+            session
+                .account
+                .as_ref()
+                .map_or("ANONYMOUS", |a| a.login_id.as_str())
+        );
+
         let response = LoginOk {
             lobby_time: WinFileTime {
                 low_date_time: 3599221550,
