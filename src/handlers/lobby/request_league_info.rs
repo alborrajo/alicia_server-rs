@@ -1,12 +1,20 @@
+use std::sync::Arc;
+
+use deku::DekuContainerRead;
+use tokio::sync::Mutex;
+
 use crate::{
-    handlers::PacketHandler,
-    packet::{CommandId, Packet},
+    commands::lobby::request_league_info::{RequestLeagueInfo, RequestLeagueInfoOk},
+    handlers::CommandHandler,
+    impl_packet_handler,
+    server::{Server, Session},
 };
 
 pub struct RequestLeagueInfoHandler {}
 impl CommandHandler for RequestLeagueInfoHandler {
     type CommandType = RequestLeagueInfo;
     async fn handle_command(
+        server: Arc<Mutex<Server>>,
         session: &mut Session,
         command: &Self::CommandType,
     ) -> Result<(), String> {

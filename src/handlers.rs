@@ -1,19 +1,28 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
 use crate::{
-    Session,
     commands::Command,
     packet::{CommandId, Packet},
+    server::{Server, Session},
 };
 
 pub mod lobby;
 
 pub trait PacketHandler {
     const COMMAND_ID: CommandId;
-    async fn handle_packet(session: &mut Session, packet: &Packet) -> Result<(), String>;
+    async fn handle_packet(
+        server: Arc<Mutex<Server>>,
+        session: &mut Session,
+        packet: &Packet,
+    ) -> Result<(), String>;
 }
 
 pub trait CommandHandler {
     type CommandType: Command;
     async fn handle_command(
+        server: Arc<Mutex<Server>>,
         session: &mut Session,
         command: &Self::CommandType,
     ) -> Result<(), String>;
@@ -22,19 +31,21 @@ pub trait CommandHandler {
 #[macro_export]
 macro_rules! impl_packet_handler {
     ($t:ty) => {
-        use crate::commands::Command; // Bring the Command trait into scope
+        use crate::commands::Command;
         impl crate::handlers::PacketHandler for $t {
-            const COMMAND_ID: CommandId = <Self as CommandHandler>::CommandType::ID;
+            const COMMAND_ID: crate::packet::CommandId = <Self as CommandHandler>::CommandType::ID;
             async fn handle_packet(
-                session: &mut crate::Session,
+                server: std::sync::Arc<tokio::sync::Mutex<crate::server::Server>>,
+                session: &mut crate::server::Session,
                 packet: &crate::packet::Packet,
             ) -> Result<(), String> {
                 let mut cursor = std::io::Cursor::new(&packet.payload);
                 let mut reader = deku::reader::Reader::new(&mut cursor);
+                use deku::DekuReader;
                 let command =
                     <Self as CommandHandler>::CommandType::from_reader_with_ctx(&mut reader, ())
                         .map_err(|e| format!("Failed to deserialize command: {:?}", e))?;
-                Self::handle_command(session, &command).await
+                Self::handle_command(server, session, &command).await
             }
         }
     };

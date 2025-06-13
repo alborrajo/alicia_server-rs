@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
 use crate::{
-    Session,
     commands::{
         LengthPrefixedVec,
         lobby::login::{
@@ -8,6 +11,7 @@ use crate::{
         },
     },
     entities::{
+        account::Account,
         character::{
             self, AgeGroup, AnotherPlayerRelatedThing, Character, Gender, PlayerRelatedThing,
             YetAnotherPlayerRelatedThing,
@@ -18,14 +22,14 @@ use crate::{
     },
     handlers::CommandHandler,
     impl_packet_handler,
-    packet::CommandId,
+    server::{Server, Session},
 };
-use deku::DekuReader;
 
 pub struct LoginHandler {}
 impl CommandHandler for LoginHandler {
     type CommandType = Login;
     async fn handle_command(
+        server: Arc<Mutex<Server>>,
         session: &mut Session,
         command: &Self::CommandType,
     ) -> Result<(), String> {
