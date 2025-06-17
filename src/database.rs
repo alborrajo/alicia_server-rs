@@ -1,67 +1,76 @@
-use std::error::Error;
+use std::{error::Error, path::PathBuf};
 
 use postgresql_embedded::PostgreSQL;
-use std::env;
-use tokio::task::JoinHandle;
-use tokio_postgres::{Client, NoTls};
+use tokio_postgres::{Config, NoTls, Transaction};
+
+pub mod account;
 
 const DATABASE_NAME: &str = "alicia";
 
-pub struct Database {
-    embedded_psql: PostgreSQL,
-    psql_client: Option<Client>,
-    psql_task: Option<JoinHandle<()>>,
-}
-impl Database {
-    pub async fn new() -> Result<Database, Box<dyn Error>> {
-        let mut embedded_psql = PostgreSQL::default();
+pub async fn init_database() -> Result<(PostgreSQL, String, bool), Box<dyn Error>> {
+    let mut embedded_psql = PostgreSQL::default();
 
-        // embedded_psql.setup().await?;
-        // embedded_psql.start().await?;
+    embedded_psql.setup().await?;
+    embedded_psql.start().await?;
 
-        // let database_exists = embedded_psql.database_exists(DATABASE_NAME).await?;
-        // let wipe_on_startup = true; // TODO: Remove, make configurable, etc
+    let database_exists = embedded_psql.database_exists(DATABASE_NAME).await?;
+    let wipe_on_startup = true; // TODO: Remove, make configurable, etc
 
-        // let mut init_database = false;
-        // if database_exists {
-        //     if wipe_on_startup {
-        //         embedded_psql.drop_database(DATABASE_NAME).await?;
-        //         init_database = true;
-        //     }
-        // } else {
-        //     init_database = true;
-        // }
-
-        // let (client, connection) =
-        //     tokio_postgres::connect("host=localhost user=postgres", NoTls).await?;
-        // let psql_task = Some(tokio::spawn(async move {
-        //     if let Err(e) = connection.await {
-        //         eprintln!("Database connection error: {}", e);
-        //     }
-        // }));
-
-        // if init_database {
-        //     embedded_psql.create_database(DATABASE_NAME);
-        //     let schema_path = env::current_exe()?
-        //         .parent()
-        //         .ok_or("Failed to get directory of current executable")?
-        //         .join("res/schema.sql");
-        //     let schema = tokio::fs::read_to_string(schema_path).await?;
-        //     client.batch_execute(&schema).await?;
-        // }
-
-        Ok(Database {
-            embedded_psql,
-            psql_client: None, //Some(client),
-            psql_task: None,   //psql_task,
-        })
+    let mut init_database = false;
+    if database_exists {
+        if wipe_on_startup {
+            embedded_psql.drop_database(DATABASE_NAME).await?;
+            init_database = true;
+        }
+    } else {
+        init_database = true;
     }
 
-    pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
-        // self.embedded_psql.stop().await?;
-        if let Some(psql_task) = &self.psql_task {
-            psql_task.abort();
+    if init_database {
+        embedded_psql.create_database(DATABASE_NAME).await?;
+    }
+
+    let connection_string = embedded_psql.settings().url(DATABASE_NAME).to_owned();
+    Ok((embedded_psql, connection_string, init_database))
+}
+
+pub struct Database {
+    db_pool: deadpool_postgres::Pool,
+}
+impl Database {
+    pub async fn new(pg_config: Config, init_database: bool) -> Result<Database, Box<dyn Error>> {
+        let mgr_config = deadpool_postgres::ManagerConfig {
+            recycling_method: deadpool_postgres::RecyclingMethod::Fast,
+        };
+        let mgr = deadpool_postgres::Manager::from_config(pg_config, NoTls, mgr_config);
+        let db_pool = deadpool_postgres::Pool::builder(mgr)
+            .max_size(16)
+            .build()
+            .unwrap();
+
+        let client = db_pool.get().await?;
+
+        if init_database {
+            let schema_path = PathBuf::from("res/schema.sql");
+            let schema = tokio::fs::read_to_string(schema_path).await?;
+            client.batch_execute(&schema).await?;
         }
-        Ok(())
+
+        Ok(Database { db_pool })
+    }
+
+    pub async fn run_in_transaction<T>(
+        &mut self,
+        mut function: impl AsyncFnMut(&mut Transaction) -> Result<T, Box<dyn Error>>,
+    ) -> Result<T, Box<dyn Error>> {
+        let mut psql_client = self.db_pool.get().await?;
+        let mut transaction = psql_client.transaction().await?;
+        let result = function(&mut transaction).await;
+        if result.is_ok() {
+            transaction.commit().await?;
+        } else {
+            transaction.rollback().await?;
+        }
+        result
     }
 }

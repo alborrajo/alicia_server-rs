@@ -1,11 +1,11 @@
-CREATE TABLE accounts {
+CREATE TABLE accounts (
     member_no INTEGER PRIMARY KEY,
     login_id VARCHAR(20) NOT NULL UNIQUE,
     auth_key VARCHAR(64)
-};
+);
 
-CREATE TABLE character {
-    member_no INTEGER FOREIGN KEY REFERENCES accounts(member_no),
+CREATE TABLE character (
+    member_no INTEGER ,
     character_id INTEGER PRIMARY KEY,
     nickname VARCHAR(64) NOT NULL UNIQUE, -- TODO: Check length limit
     char_id INTEGER NOT NULL,
@@ -19,4 +19,5 @@ CREATE TABLE character {
     leg_volume INTEGER NOT NULL,
     val1 INTEGER NOT NULL,
     create_character_unk0 INTEGER NOT NULL,
-};
+    CONSTRAINT fk_member_no FOREIGN KEY (member_no) REFERENCES accounts(member_no)
+);
