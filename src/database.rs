@@ -1,6 +1,6 @@
-use std::{error::Error, path::PathBuf};
+use std::{error::Error, path::PathBuf, time::Duration};
 
-use postgresql_embedded::PostgreSQL;
+use postgresql_embedded::{PostgreSQL, Settings};
 use tokio_postgres::{Config, NoTls, Transaction};
 
 pub mod account;
@@ -8,7 +8,11 @@ pub mod account;
 const DATABASE_NAME: &str = "alicia";
 
 pub async fn init_database() -> Result<(PostgreSQL, String, bool), Box<dyn Error>> {
-    let mut embedded_psql = PostgreSQL::default();
+    let settings = Settings {
+        timeout: Some(Duration::from_secs(60)),
+        ..Default::default()
+    };
+    let mut embedded_psql = PostgreSQL::new(settings);
 
     embedded_psql.setup().await?;
     embedded_psql.start().await?;

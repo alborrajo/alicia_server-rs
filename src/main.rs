@@ -19,6 +19,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Set up database
     println!("Setting up database");
     let (embedded_psql, connection_url, init_database) = init_database().await?;
+    println!("Database running on {}", connection_url);
 
     let pg_config = tokio_postgres::Config::from_str(&connection_url)?;
     let database = Database::new(pg_config, init_database).await?;
