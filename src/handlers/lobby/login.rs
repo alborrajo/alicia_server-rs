@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{error::Error, sync::Arc};
 
 use tokio::sync::Mutex;
 
@@ -6,10 +6,11 @@ use crate::{
     commands::{
         LengthPrefixedVec,
         lobby::login::{
-            KeyboardOption, KeyboardOptions, Login, LoginOk, MacroOptions, Options, Val5, Val5Val1,
-            Val7, Val7Value, Val9, Val11, Val12, Val13,
+            KeyboardOption, KeyboardOptions, Login, LoginCancel, LoginCancelReason, LoginOk,
+            MacroOptions, Options, Val5, Val5Val1, Val7, Val7Value, Val9, Val11, Val12, Val13,
         },
     },
+    database::account::{add_account, get_account},
     entities::{
         account::Account,
         character::{
@@ -33,27 +34,67 @@ impl CommandHandler for LoginHandler {
         session: &mut Session,
         command: &Self::CommandType,
     ) -> Result<(), String> {
-        session.account = Some(Account {
-            member_no: command.member_no,
-            login_id: command
-                .login_id
-                .to_str()
-                .map_err(|e| format!("Couldn't read login id"))?
-                .to_owned(),
-            auth_key: command
-                .auth_key
-                .to_str()
-                .map_err(|e| format!("Couldn't read auth key"))?
-                .to_owned(),
-        });
-        // TODO: Remove
-        println!(
-            "Logged in as {}",
-            session
-                .account
-                .as_ref()
-                .map_or("ANONYMOUS", |a| a.login_id.as_str())
-        );
+        let login_id = command
+            .login_id
+            .to_str()
+            .map_err(|e| format!("Couldn't read login id: {}", e))?
+            .to_owned();
+        let auth_key = command
+            .auth_key
+            .to_str()
+            .map_err(|e| format!("Couldn't read auth key: {}", e))?
+            .to_owned();
+
+        let server = Arc::clone(&server);
+        let database = Arc::clone(&server.lock().await.database);
+        let account: Result<Account, Box<dyn Error>> = database
+            .lock()
+            .await
+            .run_in_transaction(async |transaction| {
+                let candidate_account = get_account(transaction, command.member_no).await;
+                if let Ok(candidate_account) = candidate_account {
+                    if candidate_account.auth_key == auth_key
+                        && candidate_account.login_id == login_id
+                    {
+                        Ok(candidate_account)
+                    } else {
+                        Err(format!("Auth key didn't match",).into())
+                    }
+                } else {
+                    let new_account = Account {
+                        member_no: command.member_no,
+                        login_id: login_id.clone(),
+                        auth_key: auth_key.clone(),
+                    };
+                    add_account(transaction, &new_account)
+                        .await
+                        .map_err(|_| "Failed to insert account in the database")?;
+                    Ok(new_account)
+                }
+            })
+            .await;
+
+        match account {
+            Ok(account) => {
+                println!("Logged in as {}", account.login_id.as_str());
+                session.account = Some(account);
+            }
+            Err(error) => {
+                println!(
+                    "Failed attempt to log in as {} (ID {}) with auth key {}: {}",
+                    login_id, command.member_no, auth_key, error
+                );
+                session
+                    .send_command(LoginCancel {
+                        reason: LoginCancelReason::InvalidUser,
+                    })
+                    .await
+                    .map_err(|e| format!("Failed to send response: {:?}", e))?;
+                return Ok(());
+            }
+        }
+
+        // TODO: Fetch character
 
         let response = LoginOk {
             lobby_time: WinFileTime {
