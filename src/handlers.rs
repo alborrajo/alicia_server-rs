@@ -19,6 +19,8 @@ pub trait PacketHandler {
     ) -> Result<(), String>;
 }
 
+// TODO: Log packet bytes
+
 pub trait CommandHandler {
     type CommandType: Command;
     async fn handle_command(
@@ -45,6 +47,13 @@ macro_rules! impl_packet_handler {
                 let command =
                     <Self as CommandHandler>::CommandType::from_reader_with_ctx(&mut reader, ())
                         .map_err(|e| format!("Failed to deserialize command: {:?}", e))?;
+                println!(
+                    "<<< Recv command {:?}:\n\tLength: {} ({:#x}) bytes\n{:#?}\n\n",
+                    <Self as crate::handlers::PacketHandler>::COMMAND_ID,
+                    packet.payload.len(),
+                    packet.payload.len(),
+                    command
+                );
                 Self::handle_command(server, session, &command).await
             }
         }
