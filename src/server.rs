@@ -1,12 +1,13 @@
 use std::{error::Error, io::Cursor, sync::Arc};
 
-use deku::{DekuError, DekuWriter, writer::Writer};
+use deku::{DekuWriter, writer::Writer};
 use pretty_hex::pretty_hex;
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
+    runtime::Handle,
     sync::Mutex,
-    task::JoinHandle,
+    task::{JoinHandle, LocalSet},
 };
 
 use crate::{
@@ -112,16 +113,17 @@ impl Server {
         let tcp_listener = TcpListener::bind(addr).await?;
         println!("Server \"{name}\" listening on: {addr}");
 
-        let server = Arc::new(Mutex::new(Server {
+        let server_instance = Arc::new(Mutex::new(Server {
             name,
             database: Arc::clone(&database),
             tcp_server_task: None,
             stop: false,
         }));
 
-        let server_clone = Arc::clone(&server);
+        // Spawn a task to deal with all incoming connections
+        let server = Arc::clone(&server_instance);
         tokio::spawn(async move {
-            while !server_clone.lock().await.stop {
+            while !server.lock().await.stop {
                 // Asynchronously wait for an inbound socket.
                 let accept_result = tcp_listener.accept().await;
                 if let Err(e) = accept_result {
@@ -130,72 +132,98 @@ impl Server {
                 }
                 let (socket, _) = accept_result.unwrap();
 
-                // And this is where much of the magic of this server happens. We
-                // crucially want all clients to make progress concurrently, rather than
-                // blocking one on completion of another. To achieve this we use the
-                // `tokio::spawn` function to execute the work in the background.
-                //
-                // Essentially here we're executing a new task to run concurrently,
-                // which will allow all of our clients to be processed concurrently.
-                let server_clone_clone = Arc::clone(&server_clone);
-                tokio::spawn(async move {
-                    println!("New connection established");
-                    let mut session = Session::new(socket);
-                    // In a loop, read data from the socket and write the data back.
-                    while !server_clone_clone.lock().await.stop {
-                        // Receive the next packet
-                        let packet_result = session.recv_packet().await;
-                        let packet = match packet_result {
-                            Ok(pkt) => pkt,
-                            Err(err) => {
-                                eprintln!("Failed to receive packet: {}", err);
+                // Spawn a task for each accepted connection
+                let server = Arc::clone(&server);
+                tokio::task::spawn_blocking(|| {
+                    Handle::current().block_on(async move {
+                        println!("New connection established");
+                        let session = Arc::new(Mutex::new(Session::new(socket)));
+                        let server = Arc::clone(&server);
+                        // In a loop, handle incoming data until the server is stopped or we break the loop.
+                        while !server.lock().await.stop {
+                            // Local task set for every task spawned while handling this packet.
+                            // Tasks in this set will all run on the same thread, allowing to run code that cant
+                            // be moved across threads, such as postgres transactions
+                            // TODO: Look into FuturesUnordered
+                            let local_task_set = LocalSet::new();
+                            // Spawn a task for each incoming packet. These tasks will not be run in parallel
+                            // but we need them as tasks running in the LocalSet to ensure all the child tasks
+                            // are run in the same thread.
+                            let session = Arc::clone(&session);
+                            let server = Arc::clone(&server);
+                            let handle_result = local_task_set
+                                .spawn_local(async move {
+                                    // Receive the next packet
+                                    let mut session = session.lock().await;
+                                    let packet_result = session.recv_packet().await;
+                                    let packet = match packet_result {
+                                        Ok(pkt) => pkt,
+                                        Err(err) => {
+                                            return Err(format!(
+                                                "Failed to receive packet: {}",
+                                                err
+                                            ));
+                                        }
+                                    };
+
+                                    let handle_result = match packet.command_id {
+                                        CommandId::AcCmdCLLogin => {
+                                            LoginHandler::handle_packet(
+                                                Arc::clone(&server),
+                                                &mut session,
+                                                &packet,
+                                            )
+                                            .await
+                                        }
+                                        CommandId::AcCmdCLShowInventory => {
+                                            ShowInventoryHandler::handle_packet(
+                                                Arc::clone(&server),
+                                                &mut session,
+                                                &packet,
+                                            )
+                                            .await
+                                        }
+                                        CommandId::AcCmdCLRequestLeagueInfo => {
+                                            RequestLeagueInfoHandler::handle_packet(
+                                                Arc::clone(&server),
+                                                &mut session,
+                                                &packet,
+                                            )
+                                            .await
+                                        }
+                                        _ => Err(format!(
+                                            "Unhandled command {:?}:\n\t{}\n",
+                                            packet.command_id,
+                                            pretty_hex(&packet.payload)
+                                        )
+                                        .into()),
+                                    };
+
+                                    if let Err(e) = handle_result {
+                                        eprintln!("Failed to handle packet: {:?}", e);
+                                    }
+
+                                    Ok(()) // Continue processing packets in this session
+                                })
+                                .await
+                                .or_else(|join_err| {
+                                    Err(format!("Couldn't join handler task: {}", join_err))
+                                });
+
+                            if let Err(handling_error) = handle_result {
+                                eprintln!("/!\\ CONNECTION CLOSED\n{}", handling_error);
                                 break;
                             }
-                        };
-
-                        println!(
-                            "<<< Recv command {:?}:\n\t{}\n",
-                            packet.command_id,
-                            pretty_hex(&packet.payload)
-                        );
-
-                        let handle_result = match packet.command_id {
-                            CommandId::AcCmdCLLogin => {
-                                LoginHandler::handle_packet(
-                                    Arc::clone(&server_clone_clone),
-                                    &mut session,
-                                    &packet,
-                                )
-                                .await
-                            }
-                            CommandId::AcCmdCLShowInventory => {
-                                ShowInventoryHandler::handle_packet(
-                                    Arc::clone(&server_clone_clone),
-                                    &mut session,
-                                    &packet,
-                                )
-                                .await
-                            }
-                            CommandId::AcCmdCLRequestLeagueInfo => {
-                                RequestLeagueInfoHandler::handle_packet(
-                                    Arc::clone(&server_clone_clone),
-                                    &mut session,
-                                    &packet,
-                                )
-                                .await
-                            }
-                            _ => Err(format!("Unhandled command: {:?}", packet.command_id)),
-                        };
-
-                        if let Err(e) = handle_result {
-                            eprintln!("Failed to handle packet: {:?}", e);
                         }
-                    }
-                    println!("Connection closed");
+                        println!("Connection closed");
+                    })
                 });
             }
-        });
-        Ok(server)
+        })
+        .await?;
+
+        // Return server instance while it runs its client handling task
+        Ok(server_instance)
     }
 
     pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
