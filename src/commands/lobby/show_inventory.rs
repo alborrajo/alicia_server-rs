@@ -1,8 +1,10 @@
 use deku::{DekuRead, DekuWrite};
 
 use crate::{
-    commands::LengthPrefixedVec,
-    entities::{horse::Horse, item::Item},
+    commands::{
+        LengthPrefixedVec,
+        shared::{horse::Horse, item::Item},
+    },
     impl_command_traits,
     packet::CommandId,
 };

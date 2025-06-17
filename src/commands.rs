@@ -10,6 +10,7 @@ use deku::{DekuReader, DekuWriter, error::DekuError, reader::Reader, writer::Wri
 use crate::packet::{CommandId, Packet};
 
 pub mod lobby;
+pub mod shared;
 
 pub trait Command:
     for<'a> DekuReader<'a>

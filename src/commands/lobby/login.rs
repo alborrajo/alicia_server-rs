@@ -8,15 +8,17 @@ use deku::{
 };
 
 use crate::{
-    commands::LengthPrefixedVec,
-    entities::{
-        character::{
-            AgeGroup, AnotherPlayerRelatedThing, Character, Gender, PlayerRelatedThing,
-            YetAnotherPlayerRelatedThing,
+    commands::{
+        LengthPrefixedVec,
+        shared::{
+            character::{
+                AgeGroup, AnotherPlayerRelatedThing, Character, Gender, PlayerRelatedThing,
+                YetAnotherPlayerRelatedThing,
+            },
+            horse::Horse,
+            item::Item,
+            win_file_time::WinFileTime,
         },
-        horse::Horse,
-        item::Item,
-        win_file_time::WinFileTime,
     },
     impl_command_traits,
     packet::CommandId,

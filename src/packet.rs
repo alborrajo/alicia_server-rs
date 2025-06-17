@@ -796,10 +796,7 @@ pub enum CommandId {
 mod tests {
     use pretty_hex::pretty_hex;
 
-    use crate::commands::{
-        Command,
-        lobby::login::{Login, LoginCancel, LoginOk},
-    };
+    use crate::commands::lobby::login::{Login, LoginCancel, LoginOk};
 
     use super::*;
 

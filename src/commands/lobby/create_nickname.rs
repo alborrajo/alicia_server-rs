@@ -2,7 +2,7 @@ use std::ffi::CString;
 
 use deku::{DekuRead, DekuWrite};
 
-use crate::{entities::character::Character, impl_command_traits, packet::CommandId};
+use crate::{commands::shared::character::Character, impl_command_traits, packet::CommandId};
 
 #[derive(Debug, Default, DekuWrite, DekuRead)]
 pub struct CreateNicknameNotify {}
