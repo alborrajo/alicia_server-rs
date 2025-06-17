@@ -17,7 +17,10 @@ pub async fn get_account<'a>(
     member_no: u32,
 ) -> Result<Account, Box<dyn Error>> {
     let row = transaction
-        .query_one("SELECT * FROM accounts WHERE member_no = $1", &[&member_no])
+        .query_one(
+            "SELECT * FROM accounts WHERE member_no = $1",
+            &[&(member_no as i64)],
+        )
         .await?;
     let account = Account::try_from_row(&row)?;
     Ok(account)
@@ -30,7 +33,7 @@ pub async fn add_account<'a>(
         .execute(
             "INSERT INTO accounts (member_no,login_id,auth_key) VALUES ($1,$2,$3)",
             &[
-                &new_account.member_no,
+                &(new_account.member_no as i64),
                 &new_account.login_id,
                 &new_account.auth_key,
             ],
@@ -48,7 +51,10 @@ pub async fn delete_account<'a>(
     member_no: u32,
 ) -> Result<(), Box<dyn Error>> {
     let rows = transaction
-        .execute("DELETE FROM accounts WHERE member_no = $1", &[&member_no])
+        .execute(
+            "DELETE FROM accounts WHERE member_no = $1",
+            &[&(member_no as i64)],
+        )
         .await?;
     if rows == 1 {
         Ok(())
