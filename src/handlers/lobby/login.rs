@@ -68,7 +68,9 @@ impl CommandHandler for LoginHandler {
                     };
                     add_account(transaction, &new_account)
                         .await
-                        .map_err(|_| "Failed to insert account in the database")?;
+                        .map_err(|err| {
+                            format!("Failed to insert account in the database:\n\t{}", err)
+                        })?;
                     Ok(new_account)
                 }
             })
@@ -81,7 +83,7 @@ impl CommandHandler for LoginHandler {
             }
             Err(error) => {
                 println!(
-                    "Failed attempt to log in as {} (ID {}) with auth key {}: {}",
+                    "Failed attempt to log in as '{}' (ID {}) with auth key '{}': {}",
                     login_id, command.member_no, auth_key, error
                 );
                 session
