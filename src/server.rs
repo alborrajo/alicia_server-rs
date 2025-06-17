@@ -152,58 +152,54 @@ impl Server {
                             let session = Arc::clone(&session);
                             let server = Arc::clone(&server);
                             let handle_result = local_task_set
-                                .spawn_local(async move {
-                                    // Receive the next packet
-                                    let mut session = session.lock().await;
-                                    let packet_result = session.recv_packet().await;
-                                    let packet = match packet_result {
-                                        Ok(pkt) => pkt,
-                                        Err(err) => {
-                                            return Err(format!(
-                                                "Failed to receive packet: {}",
-                                                err
-                                            ));
-                                        }
-                                    };
+                                .run_until(async move {
+                                    tokio::task::spawn_local(async move {
+                                        // Receive the next packet
+                                        let mut session = session.lock().await;
+                                        let packet =
+                                            session.recv_packet().await.map_err(|err| {
+                                                format!("Failed to receive packet: {}", err)
+                                            })?;
 
-                                    let handle_result = match packet.command_id {
-                                        CommandId::AcCmdCLLogin => {
-                                            LoginHandler::handle_packet(
-                                                Arc::clone(&server),
-                                                &mut session,
-                                                &packet,
-                                            )
-                                            .await
-                                        }
-                                        CommandId::AcCmdCLShowInventory => {
-                                            ShowInventoryHandler::handle_packet(
-                                                Arc::clone(&server),
-                                                &mut session,
-                                                &packet,
-                                            )
-                                            .await
-                                        }
-                                        CommandId::AcCmdCLRequestLeagueInfo => {
-                                            RequestLeagueInfoHandler::handle_packet(
-                                                Arc::clone(&server),
-                                                &mut session,
-                                                &packet,
-                                            )
-                                            .await
-                                        }
-                                        _ => Err(format!(
-                                            "Unhandled command {:?}:\n\t{}\n",
-                                            packet.command_id,
-                                            pretty_hex(&packet.payload)
-                                        )
-                                        .into()),
-                                    };
+                                        let handle_result = match packet.command_id {
+                                            CommandId::AcCmdCLLogin => {
+                                                LoginHandler::handle_packet(
+                                                    Arc::clone(&server),
+                                                    &mut session,
+                                                    &packet,
+                                                )
+                                                .await
+                                            }
+                                            CommandId::AcCmdCLShowInventory => {
+                                                ShowInventoryHandler::handle_packet(
+                                                    Arc::clone(&server),
+                                                    &mut session,
+                                                    &packet,
+                                                )
+                                                .await
+                                            }
+                                            CommandId::AcCmdCLRequestLeagueInfo => {
+                                                RequestLeagueInfoHandler::handle_packet(
+                                                    Arc::clone(&server),
+                                                    &mut session,
+                                                    &packet,
+                                                )
+                                                .await
+                                            }
+                                            _ => Err(format!(
+                                                "Unhandled command {:?}:\n\t{}\n",
+                                                packet.command_id,
+                                                pretty_hex(&packet.payload)
+                                            )),
+                                        };
 
-                                    if let Err(e) = handle_result {
-                                        eprintln!("Failed to handle packet: {:?}", e);
-                                    }
+                                        if let Err(e) = handle_result {
+                                            eprintln!("Failed to handle packet:\n\t{}", e);
+                                        }
 
-                                    Ok(()) // Continue processing packets in this session
+                                        Ok::<(), String>(()) // Continue processing packets in this session
+                                    })
+                                    .await
                                 })
                                 .await
                                 .or_else(|join_err| {
