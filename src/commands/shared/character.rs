@@ -4,7 +4,7 @@ use std::ffi::CString;
 
 use crate::database::{U8Sql, U16Sql};
 
-#[derive(Debug, Default, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, Default, DekuRead, DekuWrite, Clone, FromRow)]
 pub struct Character {
     #[from_row(flatten)]
     pub parts: Parts,
@@ -12,7 +12,7 @@ pub struct Character {
     pub appearance: Appearance,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, DekuRead, DekuWrite, Clone, FromRow)]
 pub struct Parts {
     #[from_row(from = "U8Sql")]
     pub char_id: u8,
@@ -35,7 +35,7 @@ impl Default for Parts {
     }
 }
 
-#[derive(Debug, Default, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, Default, DekuRead, DekuWrite, Clone, FromRow)]
 pub struct Appearance {
     #[from_row(rename = "appearance_val0")]
     #[from_row(from = "U16Sql")]

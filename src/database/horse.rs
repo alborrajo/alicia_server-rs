@@ -24,7 +24,7 @@ pub async fn get_horses_by_character_id<'a>(
 pub async fn insert_horse<'a>(
     transaction: &mut Transaction<'a>,
     character_id: u32,
-    horse: Horse,
+    horse: &Horse,
 ) -> Result<(), Box<dyn Error>> {
     let rows = transaction
         .execute(
@@ -65,7 +65,7 @@ pub async fn insert_horse<'a>(
                 &U32Sql::from(character_id),
                 &U32Sql::from(horse.uid),
                 &U32Sql::from(horse.tid),
-                &CStringSql::from(horse.name),
+                &CStringSql::from(horse.name.clone()),
                 &U8Sql::from(horse.parts.skin_id),
                 &U8Sql::from(horse.parts.mane_id),
                 &U8Sql::from(horse.parts.tail_id),

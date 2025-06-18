@@ -28,28 +28,29 @@ pub async fn get_character_by_member_no<'a>(
 
 pub async fn insert_character<'a>(
     transaction: &mut Transaction<'a>,
-    character: Character,
+    member_no: u32,
+    character: &Character,
 ) -> Result<(), Box<dyn Error>> {
     let rows = transaction
         .execute(
             "INSERT INTO characters (
-                member_no
-                character_id
-                nickname
-                char_id
-                mouth_serial_id
-                face_serial_id
-                parts_val0
-                appearance_val0
-                head_size
-                height
-                thigh_volume
-                leg_volume
-                appearance_val1
-                create_character_unk0 
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
+                member_no,
+                character_id,
+                nickname,
+                char_id,
+                mouth_serial_id,
+                face_serial_id,
+                parts_val0,
+                appearance_val0,
+                head_size,
+                height,
+                thigh_volume,
+                leg_volume,
+                appearance_val1,
+                create_character_unk0
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
             &[
-                &U32Sql::from(character.member_no),
+                &U32Sql::from(member_no),
                 &U32Sql::from(character.character_id),
                 &character.nickname,
                 &U8Sql::from(character.character.parts.char_id),

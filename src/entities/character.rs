@@ -2,10 +2,8 @@ use postgres_from_row::FromRow;
 
 use crate::database::U32Sql;
 
-#[derive(FromRow)]
+#[derive(Clone, FromRow)]
 pub struct Character {
-    #[from_row(from = "U32Sql")]
-    pub member_no: u32,
     #[from_row(from = "U32Sql")]
     pub character_id: u32,
     pub nickname: String,

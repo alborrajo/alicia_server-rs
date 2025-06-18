@@ -11,14 +11,14 @@ use tokio::{
 };
 
 use crate::{
-    commands::Command,
+    commands::{Command, shared::horse::Horse},
     database::Database,
-    entities::account::Account,
+    entities::{account::Account, character::Character},
     handlers::{
         PacketHandler,
         lobby::{
-            login::LoginHandler, request_league_info::RequestLeagueInfoHandler,
-            show_inventory::ShowInventoryHandler,
+            create_nickname::CreateNicknameHandler, login::LoginHandler,
+            request_league_info::RequestLeagueInfoHandler, show_inventory::ShowInventoryHandler,
         },
     },
     packet::{CommandId, MAX_BUFFER_SIZE, Packet, PacketScrambler},
@@ -26,19 +26,25 @@ use crate::{
 
 pub struct Session {
     buf: [u8; MAX_BUFFER_SIZE],
-    scrambler: PacketScrambler,
     socket: TcpStream,
 
+    pub scrambler: PacketScrambler,
+
     pub account: Option<Account>,
+    pub character: Option<Character>,
+    pub horse: Option<Horse>,
 }
 impl Session {
     fn new(socket: TcpStream) -> Self {
         Session {
             buf: [0u8; MAX_BUFFER_SIZE],
-            scrambler: PacketScrambler { xor_key: 0 },
             socket,
 
+            scrambler: PacketScrambler::default(),
+
             account: None,
+            character: None,
+            horse: None,
         }
     }
 
@@ -170,6 +176,14 @@ impl Server {
                                                 )
                                                 .await
                                             }
+                                            CommandId::AcCmdCLCreateNickname => {
+                                                CreateNicknameHandler::handle_packet(
+                                                    Arc::clone(&server),
+                                                    &mut session,
+                                                    &packet,
+                                                )
+                                                .await
+                                            }
                                             CommandId::AcCmdCLShowInventory => {
                                                 ShowInventoryHandler::handle_packet(
                                                     Arc::clone(&server),
@@ -186,15 +200,16 @@ impl Server {
                                                 )
                                                 .await
                                             }
-                                            _ => Err(format!(
-                                                "Unhandled command {:?}:\n\t{}\n",
-                                                packet.command_id,
-                                                pretty_hex(&packet.payload)
-                                            )),
+                                            _ => Err("Unhandled command".into()),
                                         };
 
                                         if let Err(e) = handle_result {
-                                            eprintln!("Failed to handle packet:\n\t{}", e);
+                                            eprintln!(
+                                                "Failed to handle packet {:?}:\n\t{}\n\t{}",
+                                                packet.command_id,
+                                                e,
+                                                pretty_hex(&packet.payload)
+                                            );
                                         }
 
                                         Ok::<(), String>(()) // Continue processing packets in this session

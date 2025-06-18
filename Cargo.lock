@@ -27,6 +27,7 @@ dependencies = [
  "postgres-from-row",
  "postgresql_embedded",
  "pretty-hex",
+ "rand 0.9.1",
  "tokio",
  "tokio-postgres",
 ]
