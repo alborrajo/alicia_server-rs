@@ -1,11 +1,7 @@
--- PostgreSQL doesn't have unsigned integers, therefore we have to use BIGINT (Signed 8 bytes, i64)
--- to store u32 (Unsigned 4 bytes). Wasteful, i know.
--- TODO: Find a way to convert u32 to i32 using traits or smth, they should be equivalent.
-
 CREATE TABLE accounts (
-    member_no BIGINT PRIMARY KEY,
-    login_id VARCHAR(20) NOT NULL UNIQUE,
-    auth_key VARCHAR(64)
+    member_no INTEGER PRIMARY KEY NOT NULL,
+    login_id TEXT NOT NULL UNIQUE,
+    auth_key TEXT
 );
 
 CREATE TABLE character (

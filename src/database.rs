@@ -1,9 +1,14 @@
-use std::{error::Error, path::PathBuf, time::Duration};
+use std::{error::Error, ffi::CString, path::PathBuf, time::Duration};
 
 use postgresql_embedded::{PostgreSQL, Settings};
-use tokio_postgres::{Config, NoTls, Transaction};
+use tokio_postgres::{
+    Config, NoTls, Transaction,
+    types::{FromSql, IsNull, ToSql, Type, accepts, private::BytesMut, to_sql_checked},
+};
 
 pub mod account;
+pub mod character;
+pub mod horse;
 
 const DATABASE_NAME: &str = "alicia";
 
@@ -78,3 +83,87 @@ impl Database {
         result
     }
 }
+
+// Wrapper to be able to insert CString into SQL
+#[derive(Debug)]
+pub struct CStringSql {
+    pub value: CString,
+}
+impl<'a> FromSql<'a> for CStringSql {
+    fn from_sql(_ty: &Type, raw: &'a [u8]) -> Result<Self, Box<dyn Error + Sync + Send>> {
+        Ok(CStringSql {
+            value: CString::new(raw)?,
+        })
+    }
+    accepts!(VARCHAR);
+}
+impl ToSql for CStringSql {
+    fn to_sql(
+        &self,
+        _: &Type,
+        w: &mut BytesMut,
+    ) -> Result<IsNull, Box<dyn std::error::Error + Sync + Send>> {
+        w.extend_from_slice(self.value.as_bytes());
+        Ok(IsNull::No)
+    }
+    accepts!(VARCHAR);
+    to_sql_checked!();
+}
+impl From<CStringSql> for CString {
+    fn from(wrapper: CStringSql) -> Self {
+        wrapper.value
+    }
+}
+impl From<CString> for CStringSql {
+    fn from(value: CString) -> Self {
+        CStringSql { value }
+    }
+}
+
+// Wrappers to be able to insert unsigned types into SQL
+macro_rules! define_unsigned_int_db_wrapper {
+    ($name:ident, $innertype:ty, $dbtype:ty, $psqltype:ident, $bytecount:literal) => {
+        #[derive(Debug)]
+        pub struct $name {
+            pub value: $innertype,
+        }
+        impl<'a> FromSql<'a> for $name {
+            fn from_sql(_ty: &Type, raw: &'a [u8]) -> Result<Self, Box<dyn Error + Sync + Send>> {
+                if raw.len() != $bytecount {
+                    return Err(format!("expected to get {} bytes", $bytecount).into());
+                }
+                let db_value = <$dbtype>::from_be_bytes(raw.try_into()?);
+                Ok($name {
+                    value: db_value as $innertype,
+                })
+            }
+            accepts!($psqltype);
+        }
+        impl ToSql for $name {
+            fn to_sql(
+                &self,
+                _: &Type,
+                w: &mut BytesMut,
+            ) -> Result<IsNull, Box<dyn std::error::Error + Sync + Send>> {
+                w.extend_from_slice(&(self.value as $dbtype).to_be_bytes());
+                Ok(IsNull::No)
+            }
+            accepts!($psqltype);
+            to_sql_checked!();
+        }
+        impl From<$name> for $innertype {
+            fn from(wrapper: $name) -> Self {
+                wrapper.value
+            }
+        }
+        impl From<$innertype> for $name {
+            fn from(value: $innertype) -> Self {
+                $name { value }
+            }
+        }
+    };
+}
+
+define_unsigned_int_db_wrapper!(U8Sql, u8, i16, INT2, 2);
+define_unsigned_int_db_wrapper!(U16Sql, u16, i16, INT2, 2);
+define_unsigned_int_db_wrapper!(U32Sql, u32, i32, INT4, 4);

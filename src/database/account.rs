@@ -3,7 +3,7 @@ use std::error::Error;
 use postgres_from_row::FromRow;
 use tokio_postgres::Transaction;
 
-use crate::entities::account::Account;
+use crate::{database::U32Sql, entities::account::Account};
 
 pub async fn get_accounts<'a>(
     transaction: &mut Transaction<'a>,
@@ -19,7 +19,7 @@ pub async fn get_account<'a>(
     let row = transaction
         .query_one(
             "SELECT * FROM accounts WHERE member_no = $1",
-            &[&(member_no as i64)],
+            &[&U32Sql::from(member_no)],
         )
         .await?;
     let account = Account::try_from_row(&row)?;
@@ -33,7 +33,7 @@ pub async fn add_account<'a>(
         .execute(
             "INSERT INTO accounts (member_no,login_id,auth_key) VALUES ($1,$2,$3)",
             &[
-                &(new_account.member_no as i64),
+                &U32Sql::from(new_account.member_no),
                 &new_account.login_id,
                 &new_account.auth_key,
             ],
@@ -53,7 +53,7 @@ pub async fn delete_account<'a>(
     let rows = transaction
         .execute(
             "DELETE FROM accounts WHERE member_no = $1",
-            &[&(member_no as i64)],
+            &[&U32Sql::from(member_no)],
         )
         .await?;
     if rows == 1 {
