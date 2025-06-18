@@ -21,7 +21,7 @@ const BUFFER_JUMBO: u16 = 16384;
 const XOR_MULTIPLIER: u32 = 0xdff7f7db;
 const XOR_CONTROL: u32 = 0xa20191cb;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PacketScrambler {
     pub xor_key: u32,
 }
@@ -34,10 +34,13 @@ impl PacketScrambler {
     }
 
     pub fn scramble(&mut self, packet: &mut Packet) {
-        self.roll_key();
-        for idx in 0..packet.payload.len() {
-            let shift = idx % 4;
-            packet.payload[idx] ^= self.xor_key.to_le_bytes()[shift];
+        if packet.payload.len() > 0 {
+            // This is important. The key must not be rolled if the payload is empty
+            self.roll_key();
+            for idx in 0..packet.payload.len() {
+                let shift = idx % 4;
+                packet.payload[idx] ^= self.xor_key.to_le_bytes()[shift];
+            }
         }
     }
 }
