@@ -4,20 +4,26 @@ CREATE TABLE accounts (
     auth_key TEXT
 );
 
-CREATE TABLE character (
-    member_no BIGINT ,
-    character_id BIGINT PRIMARY KEY,
-    nickname VARCHAR(64) NOT NULL UNIQUE, -- TODO: Check length limit
-    char_id BIGINT NOT NULL,
-    mouth_serial_id BIGINT NOT NULL,
-    face_serial_id BIGINT NOT NULL,
-    parts_val0 BIGINT NOT NULL,
-    appearance_val0 BIGINT NOT NULL,
-    head_size BIGINT NOT NULL,
-    height BIGINT NOT NULL,
-    thigh_volume BIGINT NOT NULL,
-    leg_volume BIGINT NOT NULL,
-    val1 BIGINT NOT NULL,
-    create_character_unk0 BIGINT NOT NULL,
+CREATE TABLE characters (
+    member_no INTEGER NOT NULL,
+    character_id INTEGER PRIMARY KEY NOT NULL,
+    nickname TEXT NOT NULL UNIQUE, -- TODO: Check length limit
+
+    -- Parts
+    char_id SMALLINT NOT NULL,
+    mouth_serial_id SMALLINT NOT NULL,
+    face_serial_id SMALLINT NOT NULL,
+    parts_val0 SMALLINT NOT NULL,
+
+    -- Appearance
+    appearance_val0 SMALLINT NOT NULL,
+    head_size SMALLINT NOT NULL,
+    height SMALLINT NOT NULL,
+    thigh_volume SMALLINT NOT NULL,
+    leg_volume SMALLINT NOT NULL,
+    appearance_val1 SMALLINT NOT NULL,
+
+    create_character_unk0 INTEGER NOT NULL,
+
     CONSTRAINT fk_member_no FOREIGN KEY (member_no) REFERENCES accounts(member_no)
 );
