@@ -120,7 +120,7 @@ pub struct Server {
     pub server_type: ServerType,
     pub settings: Settings,
     pub database: Arc<Mutex<Database>>,
-    tcp_server_task: Option<JoinHandle<()>>,
+    worker_task: Option<JoinHandle<()>>,
     stop: bool,
 }
 impl Server {
@@ -139,13 +139,13 @@ impl Server {
             server_type: server_type,
             settings: settings.clone(),
             database: Arc::clone(&database),
-            tcp_server_task: None,
+            worker_task: None,
             stop: false,
         }));
 
         // Spawn a task to deal with all incoming connections
         let server = Arc::clone(&server_instance);
-        tokio::spawn(async move {
+        let worker_task = tokio::spawn(async move {
             while !server.lock().await.stop {
                 // Asynchronously wait for an inbound socket.
                 let accept_result = tcp_listener.accept().await;
@@ -157,7 +157,7 @@ impl Server {
 
                 // Spawn a task for each accepted connection
                 let server = Arc::clone(&server);
-                tokio::task::spawn_blocking(|| {
+                tokio::task::spawn_blocking(move || {
                     Handle::current().block_on(async move {
                         println!("New connection established");
                         let session = Arc::new(Mutex::new(Session::new(socket)));
@@ -302,12 +302,12 @@ impl Server {
                                 break;
                             }
                         }
-                        println!("Connection closed");
                     })
                 });
             }
-        })
-        .await?;
+        });
+
+        server_instance.lock().await.worker_task = Some(worker_task);
 
         // Return server instance while it runs its client handling task
         Ok(server_instance)
@@ -315,8 +315,8 @@ impl Server {
 
     pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
         self.stop = true;
-        if let Some(tcp_server_task) = self.tcp_server_task.as_mut() {
-            tcp_server_task.await?;
+        if let Some(worker_task) = self.worker_task.as_mut() {
+            worker_task.await?;
         }
         Ok(())
     }
