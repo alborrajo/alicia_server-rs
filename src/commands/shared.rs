@@ -1,3 +1,4 @@
+pub mod address;
 pub mod character;
 pub mod horse;
 pub mod item;

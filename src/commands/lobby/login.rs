@@ -11,6 +11,7 @@ use crate::{
     commands::{
         LengthPrefixedVec,
         shared::{
+            address::Address,
             character::{
                 AgeGroup, AnotherPlayerRelatedThing, Character, Gender, PlayerRelatedThing,
                 YetAnotherPlayerRelatedThing,
@@ -87,8 +88,7 @@ pub struct LoginOk {
 
     pub val6: CString,
 
-    pub address: u32,
-    pub port: u16,
+    pub lobby_server_address: Address,
     pub scrambling_constant: u32,
 
     pub character: Character,

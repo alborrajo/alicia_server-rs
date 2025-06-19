@@ -14,7 +14,7 @@ pub struct RequestDailyQuestListHandler {}
 impl CommandHandler for RequestDailyQuestListHandler {
     type CommandType = RequestDailyQuestList;
     async fn handle_command(
-        server: Arc<Mutex<Server>>,
+        _server: Arc<Mutex<Server>>,
         session: &mut Session,
         command: &Self::CommandType,
     ) -> Result<(), String> {

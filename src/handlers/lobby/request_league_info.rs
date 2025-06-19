@@ -14,9 +14,9 @@ pub struct RequestLeagueInfoHandler {}
 impl CommandHandler for RequestLeagueInfoHandler {
     type CommandType = RequestLeagueInfo;
     async fn handle_command(
-        server: Arc<Mutex<Server>>,
+        _server: Arc<Mutex<Server>>,
         session: &mut Session,
-        command: &Self::CommandType,
+        _command: &Self::CommandType,
     ) -> Result<(), String> {
         let pcap_data: [u8; 29] = [
             0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

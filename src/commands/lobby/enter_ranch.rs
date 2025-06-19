@@ -2,7 +2,7 @@ use std::ffi::CString;
 
 use deku::{DekuRead, DekuWrite};
 
-use crate::{impl_command_traits, packet::CommandId};
+use crate::{commands::shared::address::Address, impl_command_traits, packet::CommandId};
 
 #[derive(Debug, Default, DekuRead, DekuWrite)]
 pub struct EnterRanch {
@@ -16,8 +16,7 @@ impl_command_traits!(EnterRanch, CommandId::AcCmdCLEnterRanch);
 pub struct EnterRanchOk {
     pub ranch_uid: u32,
     pub code: u32,
-    pub ip: u32,
-    pub port: u16,
+    pub address: Address,
 }
 impl_command_traits!(EnterRanchOk, CommandId::AcCmdCLEnterRanchOK);
 

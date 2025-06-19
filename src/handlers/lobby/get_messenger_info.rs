@@ -15,19 +15,19 @@ impl CommandHandler for GetMessengerInfoHandler {
     async fn handle_command(
         server: Arc<Mutex<Server>>,
         session: &mut Session,
-        command: &Self::CommandType,
+        _command: &Self::CommandType,
     ) -> Result<(), String> {
-        let (messenger_ip, messenger_port) = {
-            let server = server.lock().await;
-            (
-                server.settings.messenger_server.announce_ip,
-                server.settings.messenger_server.announce_port,
-            )
-        };
+        let messenger_address = server
+            .lock()
+            .await
+            .settings
+            .messenger_server
+            .announce_address
+            .clone();
+
         let response = GetMessengerInfoOk {
             code: 0, // This is likely for the packet scrambler. TODO: Use
-            ip: messenger_ip,
-            port: messenger_port,
+            address: messenger_address,
         };
         session
             .send_command(response)

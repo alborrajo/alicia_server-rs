@@ -3,10 +3,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::{
-    commands::{
-        lobby::enter_ranch::{EnterRanch, EnterRanchOk},
-        shared::character,
-    },
+    commands::lobby::enter_ranch::{EnterRanch, EnterRanchOk},
     handlers::CommandHandler,
     impl_packet_handler,
     server::{Server, Session},
@@ -34,18 +31,18 @@ impl CommandHandler for EnterRanchHandler {
 
         // TODO: Fetch ranch from the server
 
-        let (ranch_ip, ranch_port) = {
-            let server = server.lock().await;
-            (
-                server.settings.ranch_server.announce_ip,
-                server.settings.ranch_server.announce_port,
-            )
-        };
+        let ranch_address = server
+            .lock()
+            .await
+            .settings
+            .ranch_server
+            .announce_address
+            .clone();
+
         let response = EnterRanchOk {
             ranch_uid: 1234,
             code: 0x11223344, // This should probably be the packet scrambler code. TODO: Change
-            ip: ranch_ip,
-            port: ranch_port, // Placeholder for port, adjust as needed
+            address: ranch_address,
         };
         session
             .send_command(response)

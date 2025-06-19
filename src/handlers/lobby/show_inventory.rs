@@ -14,18 +14,10 @@ pub struct ShowInventoryHandler {}
 impl CommandHandler for ShowInventoryHandler {
     type CommandType = ShowInventory;
     async fn handle_command(
-        server: Arc<Mutex<Server>>,
+        _server: Arc<Mutex<Server>>,
         session: &mut Session,
-        command: &Self::CommandType,
+        _command: &Self::CommandType,
     ) -> Result<(), String> {
-        // TODO: Remove
-        println!(
-            "Requested inventory as {}",
-            session
-                .account
-                .as_ref()
-                .map_or("ANONYMOUS", |a| a.login_id.as_str())
-        );
         let pcap_data: [u8; 498] = [
             0x1F, 0x4A, 0x75, 0x00, 0x02, 0x4A, 0x75, 0x00, 0x00, 0xB8, 0x1B, 0x01, 0x00, 0x01,
             0x00, 0x00, 0x00, 0xB0, 0x9A, 0x00, 0x02, 0xB0, 0x9A, 0x00, 0x00, 0xB8, 0x1B, 0x01,

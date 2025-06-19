@@ -1,5 +1,7 @@
 use std::net::Ipv4Addr;
 
+use crate::commands::shared::address::Address;
+
 #[derive(Debug, Clone)]
 pub struct Settings {
     pub lobby_server: ServerSettings,
@@ -13,8 +15,7 @@ pub struct Settings {
 pub struct ServerSettings {
     pub enabled: bool,
     pub bind_address: String,
-    pub announce_ip: u32,
-    pub announce_port: u16,
+    pub announce_address: Address,
 }
 
 #[derive(Debug, Clone)]
@@ -29,26 +30,34 @@ impl Default for Settings {
             lobby_server: ServerSettings {
                 enabled: true,
                 bind_address: "0.0.0.0:10030".to_owned(),
-                announce_ip: Ipv4Addr::new(127, 0, 0, 1).into(),
-                announce_port: 10030,
+                announce_address: Address {
+                    ip: Ipv4Addr::new(127, 0, 0, 1),
+                    port: 10030,
+                },
             },
             ranch_server: ServerSettings {
                 enabled: true,
                 bind_address: "0.0.0.0:10031".to_owned(),
-                announce_ip: Ipv4Addr::new(127, 0, 0, 1).into(),
-                announce_port: 10031,
+                announce_address: Address {
+                    ip: Ipv4Addr::new(127, 0, 0, 1),
+                    port: 10031,
+                },
             },
             race_server: ServerSettings {
                 enabled: true,
                 bind_address: "0.0.0.0:10032".to_owned(),
-                announce_ip: Ipv4Addr::new(127, 0, 0, 1).into(),
-                announce_port: 10032,
+                announce_address: Address {
+                    ip: Ipv4Addr::new(127, 0, 0, 1),
+                    port: 10032,
+                },
             },
             messenger_server: ServerSettings {
                 enabled: true,
                 bind_address: "0.0.0.0:10033".to_owned(),
-                announce_ip: Ipv4Addr::new(127, 0, 0, 1).into(),
-                announce_port: 10033,
+                announce_address: Address {
+                    ip: Ipv4Addr::new(127, 0, 0, 1),
+                    port: 10033,
+                },
             },
             database: DatabaseSettings {
                 url: None,

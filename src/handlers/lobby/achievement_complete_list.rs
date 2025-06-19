@@ -16,7 +16,7 @@ pub struct AchievementCompleteListHandler {}
 impl CommandHandler for AchievementCompleteListHandler {
     type CommandType = AchievementCompleteList;
     async fn handle_command(
-        server: Arc<Mutex<Server>>,
+        _server: Arc<Mutex<Server>>,
         session: &mut Session,
         command: &Self::CommandType,
     ) -> Result<(), String> {

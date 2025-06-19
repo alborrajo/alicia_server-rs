@@ -134,13 +134,13 @@ impl CommandHandler for LoginHandler {
         // Generate packet scrambler key
         session.scrambler.xor_key = rand::random();
 
-        let (lobby_ip, lobby_port) = {
-            let server = server.lock().await;
-            (
-                server.settings.lobby_server.announce_ip,
-                server.settings.lobby_server.announce_port,
-            )
-        };
+        let lobby_address = server
+            .lock()
+            .await
+            .settings
+            .lobby_server
+            .announce_address
+            .clone();
 
         session
             .send_command(LoginOk {
@@ -313,8 +313,7 @@ impl CommandHandler for LoginHandler {
                     ],
                 },
                 val6: c"".to_owned(),
-                address: lobby_ip,
-                port: lobby_port,
+                lobby_server_address: lobby_address,
                 scrambling_constant: session.scrambler.xor_key,
                 character: character
                     .as_ref()

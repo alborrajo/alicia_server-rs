@@ -4,10 +4,7 @@ use deku::DekuContainerRead;
 use tokio::sync::Mutex;
 
 use crate::{
-    commands::{
-        lobby::request_quest_list::{RequestQuestList, RequestQuestListOk},
-        shared::character,
-    },
+    commands::lobby::request_quest_list::{RequestQuestList, RequestQuestListOk},
     handlers::CommandHandler,
     impl_packet_handler,
     server::{Server, Session},
@@ -17,7 +14,7 @@ pub struct RequestQuestListHandler {}
 impl CommandHandler for RequestQuestListHandler {
     type CommandType = RequestQuestList;
     async fn handle_command(
-        server: Arc<Mutex<Server>>,
+        _server: Arc<Mutex<Server>>,
         session: &mut Session,
         command: &Self::CommandType,
     ) -> Result<(), String> {

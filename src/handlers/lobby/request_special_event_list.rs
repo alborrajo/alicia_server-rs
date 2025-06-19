@@ -15,9 +15,9 @@ pub struct RequestSpecialEventListHandler {}
 impl CommandHandler for RequestSpecialEventListHandler {
     type CommandType = RequestSpecialEventList;
     async fn handle_command(
-        server: Arc<Mutex<Server>>,
+        _server: Arc<Mutex<Server>>,
         session: &mut Session,
-        command: &Self::CommandType,
+        _command: &Self::CommandType,
     ) -> Result<(), String> {
         let response = RequestSpecialEventListOk::default();
         session
