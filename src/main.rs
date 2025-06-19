@@ -4,6 +4,7 @@ mod entities;
 mod handlers;
 mod packet;
 mod server;
+mod settings;
 
 use tokio::{signal, sync::Mutex};
 
@@ -11,23 +12,38 @@ use std::{error::Error, str::FromStr, sync::Arc};
 
 use crate::{
     database::{Database, init_database},
-    server::Server,
+    server::{Server, ServerType},
+    settings::Settings,
 };
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // TODO: Load from file
+    let settings = Settings::default();
+
     // Set up database
     println!("Setting up database");
-    let (embedded_psql, connection_url, init_database) = init_database().await?;
-    println!("Database running on {}", connection_url);
+    let (embedded_psql, connection_url) = init_database(&settings.database).await?;
+    println!("Connected to database on {}", connection_url);
 
     let pg_config = tokio_postgres::Config::from_str(&connection_url)?;
-    let database = Database::new(pg_config, init_database).await?;
+    let database = Arc::new(Mutex::new(
+        Database::new(&settings.database, pg_config).await?,
+    ));
 
-    // Set up Lobby server.
-    // TODO: Move address to config
-    let addr = "0.0.0.0:10030";
-    let server = Server::new("Lobby".into(), addr, Arc::new(Mutex::new(database))).await?;
+    // Set up servers.
+    let lobby_server = if settings.lobby_server.enabled {
+        Some(
+            Server::new(
+                ServerType::Lobby,
+                &settings.lobby_server,
+                Arc::clone(&database),
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
 
     match signal::ctrl_c().await {
         Ok(()) => {}
@@ -37,7 +53,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    server.lock().await.stop().await?;
-    embedded_psql.stop().await?;
+    // TODO: Move these to Drop traits? Maybe not a good idea
+    if let Some(lobby_server) = lobby_server {
+        lobby_server.lock().await.stop().await?;
+    }
+
+    if let Some(embedded_psql) = embedded_psql {
+        embedded_psql.stop().await?;
+    }
+
     Ok(())
 }

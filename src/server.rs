@@ -22,6 +22,7 @@ use crate::{
         },
     },
     packet::{CommandId, MAX_BUFFER_SIZE, Packet, PacketScrambler},
+    settings::ServerSettings,
 };
 
 pub struct Session {
@@ -104,23 +105,33 @@ impl Session {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum ServerType {
+    Lobby,
+}
+
 pub struct Server {
-    pub name: String,
+    pub server_type: ServerType,
+    pub settings: ServerSettings,
     pub database: Arc<Mutex<Database>>,
     tcp_server_task: Option<JoinHandle<()>>,
     stop: bool,
 }
 impl Server {
     pub async fn new(
-        name: String,
-        addr: &str,
+        server_type: ServerType,
+        settings: &ServerSettings,
         database: Arc<Mutex<Database>>,
     ) -> Result<Arc<Mutex<Server>>, Box<dyn Error>> {
-        let tcp_listener = TcpListener::bind(addr).await?;
-        println!("Server \"{name}\" listening on: {addr}");
+        let tcp_listener = TcpListener::bind(&settings.bind_address).await?;
+        println!(
+            "Server \"{:?}\" listening on: {}",
+            server_type, settings.bind_address
+        );
 
         let server_instance = Arc::new(Mutex::new(Server {
-            name,
+            server_type: server_type,
+            settings: settings.clone(),
             database: Arc::clone(&database),
             tcp_server_task: None,
             stop: false,
@@ -167,40 +178,43 @@ impl Server {
                                                 format!("Failed to receive packet: {}", err)
                                             })?;
 
-                                        let handle_result = match packet.command_id {
-                                            CommandId::AcCmdCLLogin => {
-                                                LoginHandler::handle_packet(
-                                                    Arc::clone(&server),
-                                                    &mut session,
-                                                    &packet,
-                                                )
-                                                .await
-                                            }
-                                            CommandId::AcCmdCLCreateNickname => {
-                                                CreateNicknameHandler::handle_packet(
-                                                    Arc::clone(&server),
-                                                    &mut session,
-                                                    &packet,
-                                                )
-                                                .await
-                                            }
-                                            CommandId::AcCmdCLShowInventory => {
-                                                ShowInventoryHandler::handle_packet(
-                                                    Arc::clone(&server),
-                                                    &mut session,
-                                                    &packet,
-                                                )
-                                                .await
-                                            }
-                                            CommandId::AcCmdCLRequestLeagueInfo => {
-                                                RequestLeagueInfoHandler::handle_packet(
-                                                    Arc::clone(&server),
-                                                    &mut session,
-                                                    &packet,
-                                                )
-                                                .await
-                                            }
-                                            _ => Err("Unhandled command".into()),
+                                        let handle_result = match server_type {
+                                            // Lobby server commands
+                                            ServerType::Lobby => match packet.command_id {
+                                                CommandId::AcCmdCLLogin => {
+                                                    LoginHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCLCreateNickname => {
+                                                    CreateNicknameHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCLShowInventory => {
+                                                    ShowInventoryHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCLRequestLeagueInfo => {
+                                                    RequestLeagueInfoHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                _ => Err("Unhandled command".into()),
+                                            },
                                         };
 
                                         if let Err(e) = handle_result {

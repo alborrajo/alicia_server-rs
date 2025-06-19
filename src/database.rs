@@ -6,48 +6,47 @@ use tokio_postgres::{
     types::{FromSql, IsNull, ToSql, Type, accepts, private::BytesMut, to_sql_checked},
 };
 
+use crate::settings::DatabaseSettings;
+
 pub mod account;
 pub mod character;
 pub mod horse;
 
-const DATABASE_NAME: &str = "alicia";
-
-pub async fn init_database() -> Result<(PostgreSQL, String, bool), Box<dyn Error>> {
-    let settings = Settings {
-        timeout: Some(Duration::from_secs(60)),
-        ..Default::default()
-    };
-    let mut embedded_psql = PostgreSQL::new(settings);
-
-    embedded_psql.setup().await?;
-    embedded_psql.start().await?;
-
-    let database_exists = embedded_psql.database_exists(DATABASE_NAME).await?;
-    let wipe_on_startup = true; // TODO: Remove, make configurable, etc
-
-    let mut init_database = false;
-    if database_exists {
-        if wipe_on_startup {
-            embedded_psql.drop_database(DATABASE_NAME).await?;
-            init_database = true;
-        }
+pub async fn init_database(
+    settings: &DatabaseSettings,
+) -> Result<(Option<PostgreSQL>, String), Box<dyn Error>> {
+    if let Some(url) = &settings.url {
+        Ok((None, url.to_owned()))
     } else {
-        init_database = true;
-    }
+        let embedded_psql_settings = Settings {
+            timeout: Some(Duration::from_secs(60)),
+            ..Default::default()
+        };
+        let mut embedded_psql = PostgreSQL::new(embedded_psql_settings);
 
-    if init_database {
-        embedded_psql.create_database(DATABASE_NAME).await?;
-    }
+        embedded_psql.setup().await?;
+        embedded_psql.start().await?;
 
-    let connection_string = embedded_psql.settings().url(DATABASE_NAME).to_owned();
-    Ok((embedded_psql, connection_string, init_database))
+        if !embedded_psql.database_exists(DATABASE_NAME).await? {
+            embedded_psql.create_database(DATABASE_NAME).await?;
+        }
+
+        let url = embedded_psql.settings().url(DATABASE_NAME).to_owned();
+
+        Ok((Some(embedded_psql), url))
+    }
 }
+
+const DATABASE_NAME: &str = "alicia";
 
 pub struct Database {
     db_pool: deadpool_postgres::Pool,
 }
 impl Database {
-    pub async fn new(pg_config: Config, init_database: bool) -> Result<Database, Box<dyn Error>> {
+    pub async fn new(
+        db_settings: &DatabaseSettings,
+        pg_config: Config,
+    ) -> Result<Database, Box<dyn Error>> {
         let mgr_config = deadpool_postgres::ManagerConfig {
             recycling_method: deadpool_postgres::RecyclingMethod::Fast,
         };
@@ -59,7 +58,8 @@ impl Database {
 
         let client = db_pool.get().await?;
 
-        if init_database {
+        if db_settings.wipe_on_startup {
+            // TODO: Wipe existing schema
             let schema_path = PathBuf::from("res/schema.sql");
             let schema = tokio::fs::read_to_string(schema_path).await?;
             client.batch_execute(&schema).await?;
@@ -95,7 +95,7 @@ impl<'a> FromSql<'a> for CStringSql {
             value: CString::new(raw)?,
         })
     }
-    accepts!(VARCHAR);
+    accepts!(VARCHAR, TEXT);
 }
 impl ToSql for CStringSql {
     fn to_sql(
@@ -106,7 +106,7 @@ impl ToSql for CStringSql {
         w.extend_from_slice(self.value.as_bytes());
         Ok(IsNull::No)
     }
-    accepts!(VARCHAR);
+    accepts!(VARCHAR, TEXT);
     to_sql_checked!();
 }
 impl From<CStringSql> for CString {

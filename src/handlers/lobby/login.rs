@@ -134,6 +134,11 @@ impl CommandHandler for LoginHandler {
         // Generate packet scrambler key
         session.scrambler.xor_key = rand::random();
 
+        let (announce_ip, announce_port) = {
+            let server = server.lock().await;
+            (server.settings.announce_ip, server.settings.announce_port)
+        };
+
         session
             .send_command(LoginOk {
                 lobby_time: WinFileTime {
@@ -302,8 +307,8 @@ impl CommandHandler for LoginHandler {
                     ],
                 },
                 val6: c"".to_owned(),
-                address: u32::from_le_bytes([127, 0, 0, 1]),
-                port: 10030,
+                address: announce_ip,
+                port: announce_port,
                 scrambling_constant: session.scrambler.xor_key,
                 character: character
                     .as_ref()
