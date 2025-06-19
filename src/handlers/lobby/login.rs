@@ -17,7 +17,6 @@ use crate::{
                 AgeGroup, AnotherPlayerRelatedThing, Gender, PlayerRelatedThing,
                 YetAnotherPlayerRelatedThing,
             },
-            horse::{self, Horse, Mastery, Stats, Vals0, Vals1},
             item::Item,
             win_file_time::WinFileTime,
         },
@@ -25,6 +24,7 @@ use crate::{
     database::{
         account::{add_account, get_account},
         character::get_character_by_member_no,
+        horse::get_horse_by_uid,
     },
     entities::account::Account,
     handlers::CommandHandler,
@@ -112,80 +112,24 @@ impl CommandHandler for LoginHandler {
             .await
             .map_err(|e| format!("Failed to fetch character: {}", e))?;
 
-        // TODO: Fetch horse
-        let horse = character.as_ref().map(|_| Horse {
-            uid: 91857814,
-            tid: 20001,
-            name: c"idontunderstand".to_owned(),
-            parts: horse::Parts {
-                skin_id: 1,
-                mane_id: 4,
-                tail_id: 4,
-                face_id: 5,
-            },
-            appearance: horse::Appearance {
-                scale: 0,
-                leg_length: 0,
-                leg_volume: 0,
-                body_length: 0,
-                body_volume: 0,
-            },
-            stats: Stats {
-                agility: 9,
-                control: 9,
-                speed: 9,
-                strength: 9,
-                spirit: 9,
-            },
-            rating: 0,
-            class: 21,
-            class_progress: 1,
-            grade: 5,
-            growth_points: 0,
-            vals0: Vals0 {
-                stamina: 65535,
-                attractiveness: 65535,
-                hunger: 65535,
-                val0: 0,
-                val1: 1000,
-                val2: 0,
-                val3: 0,
-                val4: 0,
-                val5: 1000,
-                val6: 30,
-                val7: 10,
-                val8: 10,
-                val9: 10,
-                val10: 0,
-            },
-            vals1: Vals1 {
-                val0: 0,
-                val1: 0,
-                date_of_birth: 3097585636,
-                val3: 2,
-                val4: 0,
-                class_progression: 255,
-                val5: 0,
-                potential_level: 0,
-                has_potential: 0,
-                potential_value: 255,
-                val9: 0,
-                luck: 4,
-                has_luck: 0,
-                val12: 0,
-                fatigue: 0,
-                val14: 0,
-                emblem: 1,
-            },
-            mastery: Mastery {
-                spur_magic_count: 510,
-                jump_count: 1057,
-                sliding_time: 1528,
-                gliding_distance: 53156,
-            },
-            val16: 3097585636,
-            val17: 0,
-        });
+        let mount = if let Some(character) = &character {
+            Some(
+                database
+                    .lock()
+                    .await
+                    .run_in_transaction(async |transaction| {
+                        get_horse_by_uid(transaction, character.mount_uid).await
+                    })
+                    .await
+                    .map_err(|e| format!("Failed to fetch horse: {}", e))?
+                    .ok_or(format!(
+                        "Failed to find horse with UID {} for character '{}' ({})",
+                        character.mount_uid, character.nickname, character.character_id
+                    ))?,
+            )
+        } else {
+            None
+        };
 
         // Generate packet scrambler key
         session.scrambler.xor_key = rand::random();
@@ -365,7 +309,7 @@ impl CommandHandler for LoginHandler {
                     .as_ref()
                     .map(|c| c.character.clone())
                     .unwrap_or_default(),
-                horse: horse.unwrap_or_default(),
+                horse: mount.as_ref().map(|h| h.clone()).unwrap_or_default(),
                 val7: Val7 {
                     values: LengthPrefixedVec {
                         vec: vec![
@@ -414,11 +358,14 @@ impl CommandHandler for LoginHandler {
                     val6: 0,
                 },
                 val16: 4,
-                val17: AnotherPlayerRelatedThing {
-                    mount_uid: 91857814,
-                    val1: 18,
-                    val2: 24012772,
-                },
+                val17: mount
+                    .as_ref()
+                    .map(|h| AnotherPlayerRelatedThing {
+                        mount_uid: h.uid,
+                        val1: 18,
+                        val2: 24012772,
+                    })
+                    .unwrap_or_default(),
                 val18: 58,
                 val19: 910,
                 val20: 454,
@@ -440,6 +387,7 @@ impl CommandHandler for LoginHandler {
         }
 
         session.character = character;
+        session.mount = mount;
 
         Ok(())
     }

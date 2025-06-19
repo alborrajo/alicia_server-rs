@@ -32,7 +32,7 @@ pub struct Session {
 
     pub account: Option<Account>,
     pub character: Option<Character>,
-    pub horse: Option<Horse>,
+    pub mount: Option<Horse>,
 }
 impl Session {
     fn new(socket: TcpStream) -> Self {
@@ -44,7 +44,7 @@ impl Session {
 
             account: None,
             character: None,
-            horse: None,
+            mount: None,
         }
     }
 

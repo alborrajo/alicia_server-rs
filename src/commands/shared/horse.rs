@@ -5,7 +5,7 @@ use postgres_from_row::FromRow;
 
 use crate::database::{CStringSql, U8Sql, U16Sql, U32Sql};
 
-#[derive(Debug, Default, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite, FromRow)]
 pub struct Horse {
     #[from_row(from = "U32Sql")]
     pub uid: u32,
@@ -44,7 +44,7 @@ pub struct Horse {
     pub val17: u32,
 }
 
-#[derive(Debug, Default, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite, FromRow)]
 pub struct Parts {
     #[from_row(from = "U8Sql")]
     pub skin_id: u8,
@@ -56,7 +56,7 @@ pub struct Parts {
     pub face_id: u8,
 }
 
-#[derive(Debug, Default, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite, FromRow)]
 pub struct Appearance {
     #[from_row(from = "U8Sql")]
     pub scale: u8,
@@ -70,7 +70,7 @@ pub struct Appearance {
     pub body_volume: u8,
 }
 
-#[derive(Debug, Default, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite, FromRow)]
 pub struct Stats {
     #[from_row(from = "U32Sql")]
     pub agility: u32,
@@ -84,7 +84,7 @@ pub struct Stats {
     pub spirit: u32,
 }
 
-#[derive(Debug, Default, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite, FromRow)]
 pub struct Vals0 {
     #[from_row(from = "U16Sql")]
     pub stamina: u16,
@@ -93,51 +93,51 @@ pub struct Vals0 {
 
     #[from_row(from = "U16Sql")]
     pub hunger: u16,
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val0")]
     pub val0: u16,
 
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val1")]
     pub val1: u16,
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val2")]
     pub val2: u16,
 
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val3")]
     pub val3: u16,
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val4")]
     pub val4: u16,
 
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val5")]
     pub val5: u16,
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val6")]
     pub val6: u16,
 
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val7")]
     pub val7: u16,
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val8")]
     pub val8: u16,
 
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val9")]
     pub val9: u16,
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals0_val10")]
     pub val10: u16,
 }
 
-#[derive(Debug, Default, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite, FromRow)]
 pub struct Vals1 {
-    #[from_row(from = "U8Sql")]
+    #[from_row(from = "U8Sql", rename = "vals1_val0")]
     pub val0: u8,
-    #[from_row(from = "U32Sql")]
+    #[from_row(from = "U32Sql", rename = "vals1_val1")]
     pub val1: u32,
     #[from_row(from = "U32Sql")]
     pub date_of_birth: u32,
 
-    #[from_row(from = "U8Sql")]
+    #[from_row(from = "U8Sql", rename = "vals1_val3")]
     pub val3: u8,
-    #[from_row(from = "U8Sql")]
+    #[from_row(from = "U8Sql", rename = "vals1_val4")]
     pub val4: u8,
     #[from_row(from = "U32Sql")]
     pub class_progression: u32,
-    #[from_row(from = "U32Sql")]
+    #[from_row(from = "U32Sql", rename = "vals1_val5")]
     pub val5: u32,
 
     #[from_row(from = "U8Sql")]
@@ -146,25 +146,25 @@ pub struct Vals1 {
     pub has_potential: u8,
     #[from_row(from = "U8Sql")]
     pub potential_value: u8,
-    #[from_row(from = "U8Sql")]
+    #[from_row(from = "U8Sql", rename = "vals1_val9")]
     pub val9: u8,
 
     #[from_row(from = "U8Sql")]
     pub luck: u8,
     #[from_row(from = "U8Sql")]
     pub has_luck: u8,
-    #[from_row(from = "U8Sql")]
+    #[from_row(from = "U8Sql", rename = "vals1_val12")]
     pub val12: u8,
 
     #[from_row(from = "U16Sql")]
     pub fatigue: u16,
-    #[from_row(from = "U16Sql")]
+    #[from_row(from = "U16Sql", rename = "vals1_val14")]
     pub val14: u16,
     #[from_row(from = "U16Sql")]
     pub emblem: u16,
 }
 
-#[derive(Debug, Default, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite, FromRow)]
 pub struct Mastery {
     #[from_row(from = "U32Sql")]
     pub spur_magic_count: u32,

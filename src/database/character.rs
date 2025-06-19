@@ -37,6 +37,7 @@ pub async fn insert_character<'a>(
                 member_no,
                 character_id,
                 nickname,
+                mount_uid,
                 char_id,
                 mouth_serial_id,
                 face_serial_id,
@@ -48,11 +49,12 @@ pub async fn insert_character<'a>(
                 leg_volume,
                 appearance_val1,
                 create_character_unk0
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)",
             &[
                 &U32Sql::from(member_no),
                 &U32Sql::from(character.character_id),
                 &character.nickname,
+                &U32Sql::from(character.mount_uid),
                 &U8Sql::from(character.character.parts.char_id),
                 &U8Sql::from(character.character.parts.mouth_serial_id),
                 &U8Sql::from(character.character.parts.face_serial_id),

@@ -21,6 +21,21 @@ pub async fn get_horses_by_character_id<'a>(
     Ok(rows.iter().map(|row| Horse::from_row(row)).collect())
 }
 
+pub async fn get_horse_by_uid<'a>(
+    transaction: &mut Transaction<'a>,
+    uid: u32,
+) -> Result<Option<Horse>, Box<dyn Error>> {
+    let row_opt = transaction
+        .query_opt("SELECT * FROM horses WHERE uid = $1", &[&U32Sql::from(uid)])
+        .await?;
+    if let Some(row) = row_opt {
+        let horse = Horse::try_from_row(&row)?;
+        Ok(Some(horse))
+    } else {
+        Ok(None)
+    }
+}
+
 pub async fn insert_horse<'a>(
     transaction: &mut Transaction<'a>,
     character_id: u32,
@@ -28,7 +43,7 @@ pub async fn insert_horse<'a>(
 ) -> Result<(), Box<dyn Error>> {
     let rows = transaction
         .execute(
-            "INSERT INTO horse (
+            "INSERT INTO horses (
                 character_id,
                 uid, tid, name,
                 skin_id, mane_id, tail_id, face_id,
@@ -45,7 +60,7 @@ pub async fn insert_horse<'a>(
                 spur_magic_count, jump_count, sliding_time, gliding_distance,
                 val16, val17
             ) VALUES (
-                $1
+                $1,
                 $2, $3, $4,
                 $5, $6, $7, $8,
                 $9, $10, $11, $12, $13,
@@ -137,7 +152,10 @@ pub async fn remove_horse<'a>(
     horse_uid: u32,
 ) -> Result<(), Box<dyn Error>> {
     let rows_affected = transaction
-        .execute("DELETE FROM horses WHERE uid = $1", &[&horse_uid])
+        .execute(
+            "DELETE FROM horses WHERE uid = $1",
+            &[&U32Sql::from(horse_uid)],
+        )
         .await?;
     if rows_affected != 1 {
         Err(format!("More than one row affected: {}", rows_affected).into())

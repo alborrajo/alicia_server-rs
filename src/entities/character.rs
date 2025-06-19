@@ -7,6 +7,8 @@ pub struct Character {
     #[from_row(from = "U32Sql")]
     pub character_id: u32,
     pub nickname: String,
+    #[from_row(from = "U32Sql")]
+    pub mount_uid: u32,
     #[from_row(flatten)]
     pub character: crate::commands::shared::character::Character,
     #[from_row(from = "U32Sql")]
