@@ -272,12 +272,20 @@ impl Server {
                                         };
 
                                         if let Err(e) = handle_result {
-                                            eprintln!(
-                                                "Failed to handle packet {:?}:\n\t{}\n\t{}",
+                                            // TODO: Implement handlers for these. Use them to detect half-closed connections
+                                            let muted_packet = matches!(
                                                 packet.command_id,
-                                                e,
-                                                pretty_hex(&packet.payload)
+                                                CommandId::AcCmdCLHeartbeat
+                                                    | CommandId::AcCmdCRHeartbeat
                                             );
+                                            if !muted_packet {
+                                                eprintln!(
+                                                    "Failed to handle packet {:?}:\n\t{}\n\t{}\n",
+                                                    packet.command_id,
+                                                    e,
+                                                    pretty_hex(&packet.payload)
+                                                );
+                                            }
                                         }
 
                                         Ok::<(), String>(()) // Continue processing packets in this session
