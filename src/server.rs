@@ -17,12 +17,18 @@ use crate::{
     handlers::{
         PacketHandler,
         lobby::{
-            create_nickname::CreateNicknameHandler, login::LoginHandler,
-            request_league_info::RequestLeagueInfoHandler, show_inventory::ShowInventoryHandler,
+            achievement_complete_list::AchievementCompleteListHandler,
+            create_nickname::CreateNicknameHandler, enter_ranch::EnterRanchHandler,
+            get_messenger_info::GetMessengerInfoHandler, login::LoginHandler,
+            request_daily_quest_list::RequestDailyQuestListHandler,
+            request_league_info::RequestLeagueInfoHandler,
+            request_quest_list::RequestQuestListHandler,
+            request_special_event_list::RequestSpecialEventListHandler,
+            show_inventory::ShowInventoryHandler,
         },
     },
     packet::{CommandId, MAX_BUFFER_SIZE, Packet, PacketScrambler},
-    settings::ServerSettings,
+    settings::Settings,
 };
 
 pub struct Session {
@@ -112,7 +118,7 @@ pub enum ServerType {
 
 pub struct Server {
     pub server_type: ServerType,
-    pub settings: ServerSettings,
+    pub settings: Settings,
     pub database: Arc<Mutex<Database>>,
     tcp_server_task: Option<JoinHandle<()>>,
     stop: bool,
@@ -120,7 +126,7 @@ pub struct Server {
 impl Server {
     pub async fn new(
         server_type: ServerType,
-        settings: &ServerSettings,
+        settings: &Settings,
         database: Arc<Mutex<Database>>,
     ) -> Result<Arc<Mutex<Server>>, Box<dyn Error>> {
         let tcp_listener = TcpListener::bind(&settings.bind_address).await?;
@@ -181,8 +187,8 @@ impl Server {
                                         let handle_result = match server_type {
                                             // Lobby server commands
                                             ServerType::Lobby => match packet.command_id {
-                                                CommandId::AcCmdCLLogin => {
-                                                    LoginHandler::handle_packet(
+                                                CommandId::AcCmdCLAchievementCompleteList => {
+                                                    AchievementCompleteListHandler::handle_packet(
                                                         Arc::clone(&server),
                                                         &mut session,
                                                         &packet,
@@ -197,8 +203,32 @@ impl Server {
                                                     )
                                                     .await
                                                 }
-                                                CommandId::AcCmdCLShowInventory => {
-                                                    ShowInventoryHandler::handle_packet(
+                                                CommandId::AcCmdCLEnterRanch => {
+                                                    EnterRanchHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCLGetMessengerInfo => {
+                                                    GetMessengerInfoHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCLLogin => {
+                                                    LoginHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCLRequestDailyQuestList => {
+                                                    RequestDailyQuestListHandler::handle_packet(
                                                         Arc::clone(&server),
                                                         &mut session,
                                                         &packet,
@@ -207,6 +237,30 @@ impl Server {
                                                 }
                                                 CommandId::AcCmdCLRequestLeagueInfo => {
                                                     RequestLeagueInfoHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCLRequestQuestList => {
+                                                    RequestQuestListHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCLRequestSpecialEventList => {
+                                                    RequestSpecialEventListHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCLShowInventory => {
+                                                    ShowInventoryHandler::handle_packet(
                                                         Arc::clone(&server),
                                                         &mut session,
                                                         &packet,

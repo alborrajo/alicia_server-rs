@@ -33,14 +33,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Set up servers.
     let lobby_server = if settings.lobby_server.enabled {
-        Some(
-            Server::new(
-                ServerType::Lobby,
-                &settings.lobby_server,
-                Arc::clone(&database),
-            )
-            .await?,
-        )
+        Some(Server::new(ServerType::Lobby, &settings, Arc::clone(&database)).await?)
     } else {
         None
     };
