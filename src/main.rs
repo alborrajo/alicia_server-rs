@@ -37,11 +37,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     } else {
         None
     };
+    let ranch_server = if settings.ranch_server.enabled {
+        Some(Server::new(ServerType::Ranch, &settings, Arc::clone(&database)).await?)
+    } else {
+        None
+    };
 
     match signal::ctrl_c().await {
-        Ok(()) => {}
+        Ok(()) => {
+            println!("Received shutdown signal, stopping servers...");
+        }
         Err(err) => {
-            eprintln!("Unable to listen for shutdown signal: {}", err);
+            eprintln!(
+                "Unable to listen for shutdown signal: {}. Shutting down",
+                err
+            );
             // we also shut down in case of error
         }
     }
@@ -49,6 +59,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // TODO: Move these to Drop traits? Maybe not a good idea
     if let Some(lobby_server) = lobby_server {
         lobby_server.lock().await.stop().await?;
+    }
+    if let Some(ranch_server) = ranch_server {
+        ranch_server.lock().await.stop().await?;
     }
 
     if let Some(embedded_psql) = embedded_psql {

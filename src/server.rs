@@ -114,6 +114,7 @@ impl Session {
 #[derive(Debug, Clone, Copy)]
 pub enum ServerType {
     Lobby,
+    Ranch,
 }
 
 pub struct Server {
@@ -129,11 +130,13 @@ impl Server {
         settings: &Settings,
         database: Arc<Mutex<Database>>,
     ) -> Result<Arc<Mutex<Server>>, Box<dyn Error>> {
-        let tcp_listener = TcpListener::bind(&settings.bind_address).await?;
-        println!(
-            "Server \"{:?}\" listening on: {}",
-            server_type, settings.bind_address
-        );
+        let bind_address = match server_type {
+            ServerType::Lobby => &settings.lobby_server.bind_address,
+            ServerType::Ranch => &settings.ranch_server.bind_address,
+        };
+
+        let tcp_listener = TcpListener::bind(bind_address).await?;
+        println!("{:?} server listening on: {}", server_type, bind_address);
 
         let server_instance = Arc::new(Mutex::new(Server {
             server_type: server_type,
@@ -269,6 +272,10 @@ impl Server {
                                                 }
                                                 _ => Err("Unhandled command".into()),
                                             },
+                                            // Ranch server commands
+                                            ServerType::Ranch => {
+                                                Err("Ranch server commands not implemented".into())
+                                            }
                                         };
 
                                         if let Err(e) = handle_result {
