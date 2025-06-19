@@ -39,13 +39,13 @@ pub async fn get_horse_by_uid<'a>(
 pub async fn insert_horse<'a>(
     transaction: &mut Transaction<'a>,
     character_id: u32,
-    horse: &Horse,
+    horse: &mut Horse,
 ) -> Result<(), Box<dyn Error>> {
-    let rows = transaction
-        .execute(
+    let row = transaction
+        .query_one(
             "INSERT INTO horses (
                 character_id,
-                uid, tid, name,
+                tid, name,
                 skin_id, mane_id, tail_id, face_id,
                 scale, leg_length, leg_volume, body_length, body_volume,
                 agility, control, speed, strength, spirit,
@@ -61,24 +61,24 @@ pub async fn insert_horse<'a>(
                 val16, val17
             ) VALUES (
                 $1,
-                $2, $3, $4,
-                $5, $6, $7, $8,
-                $9, $10, $11, $12, $13,
-                $14, $15, $16, $17, $18,
-                $19, $20, $21, $22, $23,
-                $24, $25, $26,
-                $27, $28, $29, $30, $31,
-                $32, $33, $34, $35, $36, $37,
-                $38, $39, $40, $41, $42,
-                $43, $44,
-                $45, $46, $47, $48,
-                $49, $50, $51, $52, $53, $54,
-                $55, $56, $57, $58,
-                $59, $60
-            )",
+                $2, $3,
+                $4, $5, $6, $7,
+                $8, $9, $10, $11, $12,
+                $13, $14, $15, $16, $17,
+                $18, $19, $20, $21, $22,
+                $23, $24, $25,
+                $26, $27, $28, $29, $30,
+                $31, $32, $33, $34, $35, $36,
+                $37, $38, $39, $40, $41,
+                $42, $43,
+                $44, $45, $46, $47,
+                $48, $49, $50, $51, $52, $53,
+                $54, $55, $56, $57,
+                $58, $59
+            )
+            RETURNING uid",
             &[
                 &U32Sql::from(character_id),
-                &U32Sql::from(horse.uid),
                 &U32Sql::from(horse.tid),
                 &CStringSql::from(horse.name.clone()),
                 &U8Sql::from(horse.parts.skin_id),
@@ -140,11 +140,9 @@ pub async fn insert_horse<'a>(
             ],
         )
         .await?;
-    if rows == 1 {
-        Ok(())
-    } else {
-        Err(format!("Unexpected number of rows affected: {}", rows).into())
-    }
+    let uid: U32Sql = row.try_get(0)?;
+    horse.uid = uid.into();
+    Ok(())
 }
 
 pub async fn remove_horse<'a>(

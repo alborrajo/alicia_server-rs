@@ -68,12 +68,12 @@ impl CommandHandler for LoginHandler {
                         Err(format!("Auth key didn't match",).into())
                     }
                 } else {
-                    let new_account = Account {
+                    let mut new_account = Account {
                         member_no: command.member_no,
                         login_id: login_id.clone(),
                         auth_key: auth_key.clone(),
                     };
-                    add_account(transaction, &new_account)
+                    add_account(transaction, &mut new_account)
                         .await
                         .map_err(|err| {
                             format!("Failed to insert account in the database:\n\t{}", err)
@@ -146,7 +146,10 @@ impl CommandHandler for LoginHandler {
                     high_date_time: 31183665,
                 },
                 val0: 829332,
-                self_uid: 451304,
+                self_uid: character
+                    .as_ref()
+                    .map(|c| c.character_id)
+                    .unwrap_or_default(),
                 nick_name: character
                     .as_ref()
                     .map_or(Ok(c"".to_owned()), |c| {

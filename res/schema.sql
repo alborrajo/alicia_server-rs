@@ -1,13 +1,15 @@
+CREATE SEQUENCE uid;
+
 CREATE TABLE accounts (
-    member_no INTEGER PRIMARY KEY NOT NULL,
+    member_no INTEGER PRIMARY KEY NOT NULL GENERATED ALWAYS AS IDENTITY,
     login_id TEXT NOT NULL UNIQUE,
     auth_key TEXT
 );
 
 CREATE TABLE characters (
     member_no INTEGER NOT NULL,
-    character_id INTEGER PRIMARY KEY NOT NULL,
-    mount_uid INTEGER NOT NULL UNIQUE,
+    character_id INTEGER PRIMARY KEY NOT NULL DEFAULT nextval('uid'),
+    mount_uid INTEGER NOT NULL UNIQUE, -- The value 0 is understood as "no mount"
     nickname TEXT NOT NULL UNIQUE, -- TODO: Check length limit
 
     -- Parts
@@ -32,7 +34,7 @@ CREATE TABLE characters (
 CREATE TABLE horses (
     character_id INTEGER NOT NULL,
 
-    uid INTEGER PRIMARY KEY NOT NULL,
+    uid INTEGER PRIMARY KEY NOT NULL DEFAULT nextval('uid'),
     tid INTEGER NOT NULL,
     name TEXT NOT NULL,
 

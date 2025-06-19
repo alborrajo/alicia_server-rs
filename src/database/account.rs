@@ -27,23 +27,17 @@ pub async fn get_account<'a>(
 }
 pub async fn add_account<'a>(
     transaction: &mut Transaction<'a>,
-    new_account: &Account,
+    new_account: &mut Account,
 ) -> Result<(), Box<dyn Error>> {
-    let rows = transaction
-        .execute(
-            "INSERT INTO accounts (member_no,login_id,auth_key) VALUES ($1,$2,$3)",
-            &[
-                &U32Sql::from(new_account.member_no),
-                &new_account.login_id,
-                &new_account.auth_key,
-            ],
+    let row = transaction
+        .query_one(
+            "INSERT INTO accounts (login_id,auth_key) VALUES ($1,$2) RETURNING member_no",
+            &[&new_account.login_id, &new_account.auth_key],
         )
         .await?;
-    if rows == 1 {
-        Ok(())
-    } else {
-        Err(format!("Unexpected number of rows affected: {}", rows).into())
-    }
+    let member_no: U32Sql = row.get(0);
+    new_account.member_no = member_no.into();
+    Ok(())
 }
 
 pub async fn delete_account<'a>(

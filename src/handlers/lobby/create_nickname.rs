@@ -7,7 +7,7 @@ use crate::{
         create_nickname::{CreateNickname, CreateNicknameCancel},
         show_inventory::ShowInventoryOk,
     }, shared::horse::{self, Horse, Mastery, Stats, Vals0, Vals1}},
-    database::{character::insert_character, horse::insert_horse},
+    database::{character::{insert_character, update_character}, horse::insert_horse},
     entities::character::Character,
     handlers::CommandHandler,
     impl_packet_handler,
@@ -34,31 +34,28 @@ impl CommandHandler for CreateNicknameHandler {
             .lock()
             .await
             .run_in_transaction(async |transaction| {
-                let character_id = account.member_no; // TODO: Autogenerate
-                let mount_uid = account.member_no; // TODO: Autogenerate
-
-                let character = 
+                let mut character = 
                     Character {
-                        character_id,
+                        character_id: 0, // Will be set by the database
                         nickname: command
                             .nickname
                             .clone()
                             .into_string()
                             .map_err(|e| format!("Failed to convert nickname to String: {}", e))?,
-                        mount_uid: mount_uid,
+                        mount_uid: 0, // Will be set later when the horse is created
                         character: command.character.clone(),
                         create_character_unk0: command.unk0,
                     };
                 insert_character(
                     transaction,
                     account.member_no,
-                    &character
+                    &mut character
                 )
                 .await?;
 
                 // Default horse
-                let mount = Horse {
-                    uid: mount_uid,
+                let mut mount = Horse {
+                    uid: 0, // Will be set by the database
                     tid: 20001,
                     name: c"idontunderstand".to_owned(),
                     parts: horse::Parts {
@@ -130,7 +127,10 @@ impl CommandHandler for CreateNicknameHandler {
                     val16: 3097585636,
                     val17: 0,
                 };
-                insert_horse(transaction, character_id, &mount).await?;
+                insert_horse(transaction, character.character_id, &mut mount).await?;
+
+                character.mount_uid = mount.uid;
+                update_character(transaction, &character).await?;
 
                 Ok((mount, character))
             })
