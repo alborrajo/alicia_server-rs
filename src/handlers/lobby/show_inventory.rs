@@ -15,7 +15,7 @@ impl CommandHandler for ShowInventoryHandler {
     type CommandType = ShowInventory;
     async fn handle_command(
         _server: Arc<Mutex<Server>>,
-        session: &mut Session,
+        session: Arc<Mutex<Session>>,
         _command: &Self::CommandType,
     ) -> Result<(), String> {
         let pcap_data: [u8; 498] = [
@@ -60,6 +60,8 @@ impl CommandHandler for ShowInventoryHandler {
             .map_err(|e| format!("Failed to deserialize pcap: {:?}", e))
             .map(|result| result.1)?;
         session
+            .lock()
+            .await
             .send_command(pcap)
             .await
             .map_err(|e| format!("Failed to send response: {:?}", e))

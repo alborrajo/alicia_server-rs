@@ -64,7 +64,7 @@ macro_rules! impl_command_traits {
 }
 
 // Wrapper around Vec for lists in commands, where they're serialized with the list length preppended.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct LengthPrefixedVec<const BYTES: usize, T: for<'a> DekuReader<'a> + DekuWriter + Default> {
     pub vec: Vec<T>,
 }

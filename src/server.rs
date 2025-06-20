@@ -1,4 +1,4 @@
-use std::{error::Error, io::Cursor, sync::Arc};
+use std::{collections::HashMap, error::Error, io::Cursor, net::SocketAddr, sync::Arc};
 
 use deku::{DekuWriter, writer::Writer};
 use pretty_hex::pretty_hex;
@@ -32,6 +32,7 @@ use crate::{
         },
     },
     packet::{CommandId, MAX_BUFFER_SIZE, Packet, PacketScrambler},
+    ranch::Ranch,
     settings::Settings,
 };
 
@@ -89,23 +90,27 @@ impl Session {
             .try_into()
             .map_err(|e| format!("Failed to serialize response: {:?}", e))?;
         self.do_send_packet(&packet).await?;
-        println!(
-            ">>> Sent command {:?}:\n\tLength: {} ({:#x}) bytes\n{}\n\n",
-            T::ID,
-            packet.payload.len(),
-            packet.payload.len(),
-            formatted_command
-        );
+        if !packet.command_id.muted() {
+            println!(
+                ">>> Sent command {:?}:\n\tLength: {} ({:#x}) bytes\n{}\n\n",
+                T::ID,
+                packet.payload.len(),
+                packet.payload.len(),
+                formatted_command
+            );
+        }
         Ok(())
     }
 
     pub async fn send_packet(&mut self, packet: &Packet) -> Result<(), String> {
         self.do_send_packet(packet).await?;
-        println!(
-            ">>> Sent packet {:?}:\n\t{}\n\n",
-            packet.command_id,
-            pretty_hex(&packet.payload)
-        );
+        if !packet.command_id.muted() {
+            println!(
+                ">>> Sent packet {:?}:\n\t{}\n\n",
+                packet.command_id,
+                pretty_hex(&packet.payload)
+            );
+        }
         Ok(())
     }
 
@@ -138,6 +143,10 @@ pub struct Server {
     pub server_type: ServerType,
     pub settings: Settings,
     pub database: Arc<Mutex<Database>>,
+
+    pub sessions: HashMap<SocketAddr, Arc<Mutex<Session>>>,
+    pub ranches: HashMap<u32, Ranch>,
+
     worker_task: Option<JoinHandle<()>>,
     stop: bool,
 }
@@ -159,6 +168,10 @@ impl Server {
             server_type: server_type,
             settings: settings.clone(),
             database: Arc::clone(&database),
+
+            sessions: HashMap::new(),
+            ranches: HashMap::new(),
+
             worker_task: None,
             stop: false,
         }));
@@ -173,7 +186,15 @@ impl Server {
                     eprintln!("Failed to accept socket: {}", e);
                     return;
                 }
+
                 let (socket, _) = accept_result.unwrap();
+                // Use peer address as identifier when storing sessions in the hash map
+                let peer_addr = socket.peer_addr();
+                if let Err(e) = peer_addr {
+                    eprintln!("Failed to obtain peer address: {}", e);
+                    return;
+                }
+                let peer_addr = peer_addr.unwrap();
 
                 // Spawn a task for each accepted connection
                 let server = Arc::clone(&server);
@@ -181,6 +202,8 @@ impl Server {
                     Handle::current().block_on(async move {
                         println!("New connection established");
                         let session = Arc::new(Mutex::new(Session::new(socket)));
+                        server.lock().await.sessions.insert(peer_addr, Arc::clone(&session));
+
                         let server = Arc::clone(&server);
                         // In a loop, handle incoming data until the server is stopped or we break the loop.
                         while !server.lock().await.stop {
@@ -198,9 +221,7 @@ impl Server {
                                 .run_until(async move {
                                     tokio::task::spawn_local(async move {
                                         // Receive the next packet
-                                        let mut session = session.lock().await;
-                                        let packet =
-                                            session.recv_packet().await.map_err(|err| {
+                                        let packet = session.lock().await.recv_packet().await.map_err(|err| {
                                                 format!("Failed to receive packet: {}", err)
                                             })?;
 
@@ -210,7 +231,7 @@ impl Server {
                                                 CommandId::AcCmdCLAchievementCompleteList => {
                                                     AchievementCompleteListHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -218,7 +239,7 @@ impl Server {
                                                 CommandId::AcCmdCLCreateNickname => {
                                                     CreateNicknameHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -226,7 +247,7 @@ impl Server {
                                                 CommandId::AcCmdCLEnterRanch => {
                                                     crate::handlers::lobby::enter_ranch::EnterRanchHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -234,7 +255,7 @@ impl Server {
                                                 CommandId::AcCmdCLGetMessengerInfo => {
                                                     GetMessengerInfoHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -242,7 +263,7 @@ impl Server {
                                                 CommandId::AcCmdCLLogin => {
                                                     LoginHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -250,7 +271,7 @@ impl Server {
                                                 CommandId::AcCmdCLRequestDailyQuestList => {
                                                     RequestDailyQuestListHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -258,7 +279,7 @@ impl Server {
                                                 CommandId::AcCmdCLRequestLeagueInfo => {
                                                     RequestLeagueInfoHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -266,7 +287,7 @@ impl Server {
                                                 CommandId::AcCmdCLRequestQuestList => {
                                                     RequestQuestListHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -274,7 +295,7 @@ impl Server {
                                                 CommandId::AcCmdCLRequestSpecialEventList => {
                                                     RequestSpecialEventListHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -282,7 +303,7 @@ impl Server {
                                                 CommandId::AcCmdCLShowInventory => {
                                                     ShowInventoryHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -294,7 +315,7 @@ impl Server {
                                                 CommandId::AcCmdCREnterRanch => {
                                                     crate::handlers::ranch::enter_ranch::EnterRanchHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -302,7 +323,7 @@ impl Server {
                                                 CommandId::AcCmdCRRanchCmdAction => {
                                                     RanchCmdActionHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -310,7 +331,7 @@ impl Server {
                                                 CommandId::AcCmdCRRanchSnapshot => {
                                                     RanchSnapshotHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -318,7 +339,7 @@ impl Server {
                                                 CommandId::AcCmdCRRequestNpcDressList => {
                                                     RequestNpcDressListHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -326,7 +347,7 @@ impl Server {
                                                 CommandId::AcCmdCRRequestStorage => {
                                                     RequestStorageHandler::handle_packet(
                                                         Arc::clone(&server),
-                                                        &mut session,
+                                                        Arc::clone(&session),
                                                         &packet,
                                                     )
                                                     .await
@@ -367,6 +388,9 @@ impl Server {
                                 break;
                             }
                         }
+
+                        println!("Connection closed");
+                        server.lock().await.sessions.remove(&peer_addr);
                     })
                 });
             }

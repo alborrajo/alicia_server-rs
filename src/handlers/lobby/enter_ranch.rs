@@ -14,9 +14,10 @@ impl CommandHandler for EnterRanchHandler {
     type CommandType = EnterRanch;
     async fn handle_command(
         server: Arc<Mutex<Server>>,
-        session: &mut Session,
+        session: Arc<Mutex<Session>>,
         command: &Self::CommandType,
     ) -> Result<(), String> {
+        let mut session = session.lock().await;
         let character_id = session
             .character
             .as_ref()

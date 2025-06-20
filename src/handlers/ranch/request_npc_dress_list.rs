@@ -14,11 +14,13 @@ impl CommandHandler for RequestNpcDressListHandler {
     type CommandType = RequestNpcDressList;
     async fn handle_command(
         _server: Arc<Mutex<Server>>,
-        session: &mut Session,
+        session: Arc<Mutex<Session>>,
         _command: &Self::CommandType,
     ) -> Result<(), String> {
         let response = RequestNpcDressListOk::default();
         session
+            .lock()
+            .await
             .send_command(response)
             .await
             .map_err(|e| format!("Failed to send response: {:?}", e))

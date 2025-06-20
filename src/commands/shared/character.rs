@@ -62,7 +62,7 @@ pub struct Appearance {
     pub val1: u16,
 }
 
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, Clone, DekuRead, DekuWrite)]
 #[deku(id_type = "u8")]
 #[repr(u8)]
 pub enum Gender {
@@ -94,7 +94,7 @@ impl Default for AgeGroup {
         AgeGroup::Kid
     }
 }
-#[derive(Debug, Default, DekuRead, DekuWrite)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite)]
 pub struct PlayerRelatedThing {
     pub val0: u32,
     pub val1: u8,
@@ -106,14 +106,14 @@ pub struct PlayerRelatedThing {
     pub val6: u8,
 }
 
-#[derive(Debug, Default, DekuRead, DekuWrite)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite)]
 pub struct AnotherPlayerRelatedThing {
     pub mount_uid: u32,
     pub val1: u32,
     pub val2: u32,
 }
 
-#[derive(Debug, Default, DekuRead, DekuWrite)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite)]
 pub struct YetAnotherPlayerRelatedThing {
     pub val0: u32,
     pub val1: u32,

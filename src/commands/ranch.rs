@@ -26,7 +26,7 @@ pub struct RanchHorse {
     pub horse: Horse,
 }
 
-#[derive(Debug, Default, DekuRead, DekuWrite)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite)]
 pub struct RanchCharacter {
     pub uid: u32,
     pub name: CString,

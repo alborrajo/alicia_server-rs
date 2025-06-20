@@ -23,7 +23,7 @@ impl_command_traits!(EnterRanch, CommandId::AcCmdCREnterRanch);
 pub struct EnterRanchCancel {}
 impl_command_traits!(EnterRanchCancel, CommandId::AcCmdCREnterRanchCancel);
 
-#[derive(Debug, Default, DekuRead, DekuWrite)]
+#[derive(Debug, Default, Clone, DekuRead, DekuWrite)]
 pub struct EnterRanchNotify {
     pub character: RanchCharacter,
 }

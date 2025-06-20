@@ -3,6 +3,7 @@ mod database;
 mod entities;
 mod handlers;
 mod packet;
+mod ranch;
 mod server;
 mod settings;
 

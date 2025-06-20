@@ -19,11 +19,12 @@ impl CommandHandler for CreateNicknameHandler {
     type CommandType = CreateNickname;
     async fn handle_command(
         server: Arc<Mutex<Server>>,
-        session: &mut Session,
+        session: Arc<Mutex<Session>>,
         command: &Self::CommandType,
     ) -> Result<(), String> {
         let server = Arc::clone(&server);
         let database = Arc::clone(&server.lock().await.database);
+        let mut session = session.lock().await;
 
         let account = session
             .account

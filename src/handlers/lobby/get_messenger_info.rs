@@ -14,7 +14,7 @@ impl CommandHandler for GetMessengerInfoHandler {
     type CommandType = GetMessengerInfo;
     async fn handle_command(
         server: Arc<Mutex<Server>>,
-        session: &mut Session,
+        session: Arc<Mutex<Session>>,
         _command: &Self::CommandType,
     ) -> Result<(), String> {
         let messenger_address = server
@@ -30,6 +30,8 @@ impl CommandHandler for GetMessengerInfoHandler {
             address: messenger_address,
         };
         session
+            .lock()
+            .await
             .send_command(response)
             .await
             .map_err(|e| format!("Failed to send response: {:?}", e))

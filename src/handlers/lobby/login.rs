@@ -14,7 +14,7 @@ use crate::{
         },
         shared::{
             character::{
-                AgeGroup, AnotherPlayerRelatedThing, Gender, PlayerRelatedThing,
+                AgeGroup, AnotherPlayerRelatedThing, PlayerRelatedThing,
                 YetAnotherPlayerRelatedThing,
             },
             item::Item,
@@ -37,7 +37,7 @@ impl CommandHandler for LoginHandler {
     type CommandType = Login;
     async fn handle_command(
         server: Arc<Mutex<Server>>,
-        session: &mut Session,
+        session: Arc<Mutex<Session>>,
         command: &Self::CommandType,
     ) -> Result<(), String> {
         let login_id = command
@@ -83,6 +83,7 @@ impl CommandHandler for LoginHandler {
             })
             .await;
 
+        let mut session = session.lock().await;
         match account {
             Ok(account) => {
                 println!("Logged in as {}", account.login_id.as_str());
@@ -132,7 +133,8 @@ impl CommandHandler for LoginHandler {
         };
 
         // Generate packet scrambler key
-        session.scrambler.xor_key = rand::random();
+        let xor_key = rand::random();
+        session.scrambler.xor_key = xor_key;
 
         let lobby_address = server
             .lock()
@@ -317,7 +319,7 @@ impl CommandHandler for LoginHandler {
                 },
                 val6: c"".to_owned(),
                 lobby_server_address: lobby_address,
-                scrambling_constant: session.scrambler.xor_key,
+                scrambling_constant: xor_key,
                 character: character
                     .as_ref()
                     .map(|c| c.character.clone())

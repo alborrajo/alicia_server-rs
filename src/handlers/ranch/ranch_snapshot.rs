@@ -14,7 +14,7 @@ impl CommandHandler for RanchSnapshotHandler {
     type CommandType = RanchSnapshot;
     async fn handle_command(
         _server: Arc<Mutex<Server>>,
-        _session: &mut Session,
+        _session: Arc<Mutex<Session>>,
         _command: &Self::CommandType,
     ) -> Result<(), String> {
         return Ok(());

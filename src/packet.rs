@@ -794,6 +794,17 @@ pub enum CommandId {
     AcCmdCRMobPlayerReflectSkill = 0x112,
     AcCmdCLEnterRoomQuickStop = 0x1f1,
 }
+impl CommandId {
+    pub fn muted(&self) -> bool {
+        matches!(
+            self,
+            CommandId::AcCmdCLHeartbeat
+                | CommandId::AcCmdCRHeartbeat
+                | CommandId::AcCmdCRRanchSnapshot
+                | CommandId::AcCmdCRRanchSnapshotNotify
+        )
+    }
+}
 
 #[cfg(test)]
 mod tests {
