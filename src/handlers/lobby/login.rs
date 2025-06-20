@@ -397,7 +397,7 @@ impl CommandHandler for LoginHandler {
         }
 
         session.character = character;
-        session.mount = mount;
+        session.horses = mount.map(|h| vec![h]);
 
         Ok(())
     }

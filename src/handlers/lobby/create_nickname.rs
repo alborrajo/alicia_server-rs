@@ -6,7 +6,7 @@ use crate::{
     commands::{lobby::{
         create_nickname::{CreateNickname, CreateNicknameCancel},
         show_inventory::ShowInventoryOk,
-    }, shared::horse::{self, Horse, Mastery, Stats, Vals0, Vals1}},
+    }, shared::horse::{self, Horse, Mastery, Stats, Vals0, Vals1}, LengthPrefixedVec},
     database::{character::{insert_character, update_character}, horse::insert_horse},
     entities::character::Character,
     handlers::CommandHandler,
@@ -139,11 +139,15 @@ impl CommandHandler for CreateNicknameHandler {
         match result {
             Ok((mount, character)) => {
                 session.character = Some(character);
-                session.mount = Some(mount);
+                session.horses = Some(vec![mount.clone()]);
                 session
                     .send_command(ShowInventoryOk {
-                        // TODO
-                        ..Default::default()
+                        horses: LengthPrefixedVec {
+                            vec: vec![
+                                mount
+                            ]
+                        },
+                        items: LengthPrefixedVec::default(),
                     }).await?;
                 Ok(())
             },

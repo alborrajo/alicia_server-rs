@@ -10,6 +10,7 @@ use deku::{DekuReader, DekuWriter, error::DekuError, reader::Reader, writer::Wri
 use crate::packet::{CommandId, Packet};
 
 pub mod lobby;
+pub mod ranch;
 pub mod shared;
 
 pub trait Command:
@@ -100,6 +101,48 @@ where
             item.to_writer(writer, ctx)?;
         }
         Ok(())
+    }
+}
+
+// Wrapper around Vec<u8> for buffers that take the whole remaining buffer.
+#[derive(Debug, Default)]
+pub struct RestOfBuffer {
+    pub bytes: Vec<u8>,
+}
+impl<'a> DekuReader<'a> for RestOfBuffer {
+    fn from_reader_with_ctx<R: Read + Seek>(
+        reader: &mut Reader<R>,
+        _ctx: (),
+    ) -> Result<Self, DekuError>
+    where
+        Self: Sized,
+    {
+        let mut size = 0;
+        let mut bytes = Vec::new();
+        loop {
+            bytes.resize(size + 1024, 0);
+            let result = reader.read_bytes(1024, &mut bytes[size..], deku::ctx::Order::Lsb0);
+            if let Err(error) = result {
+                match error {
+                    DekuError::Incomplete(need_size) => {
+                        size = size + 1024 - need_size.byte_size();
+                        bytes.resize(size, 0);
+                        return Ok(RestOfBuffer { bytes });
+                    }
+                    _ => return Err(error),
+                }
+            }
+            size = size + 1024;
+        }
+    }
+}
+impl<'a> DekuWriter for RestOfBuffer {
+    fn to_writer<W: Write + Seek>(
+        &self,
+        writer: &mut Writer<W>,
+        _ctx: (),
+    ) -> Result<(), DekuError> {
+        writer.write_bytes(self.bytes.as_slice())
     }
 }
 

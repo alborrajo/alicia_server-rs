@@ -18,13 +18,17 @@ use crate::{
         PacketHandler,
         lobby::{
             achievement_complete_list::AchievementCompleteListHandler,
-            create_nickname::CreateNicknameHandler, enter_ranch::EnterRanchHandler,
-            get_messenger_info::GetMessengerInfoHandler, login::LoginHandler,
-            request_daily_quest_list::RequestDailyQuestListHandler,
+            create_nickname::CreateNicknameHandler, get_messenger_info::GetMessengerInfoHandler,
+            login::LoginHandler, request_daily_quest_list::RequestDailyQuestListHandler,
             request_league_info::RequestLeagueInfoHandler,
             request_quest_list::RequestQuestListHandler,
             request_special_event_list::RequestSpecialEventListHandler,
             show_inventory::ShowInventoryHandler,
+        },
+        ranch::{
+            ranch_cmd_action::RanchCmdActionHandler, ranch_snapshot::RanchSnapshotHandler,
+            request_npc_dress_list::RequestNpcDressListHandler,
+            request_storage::RequestStorageHandler,
         },
     },
     packet::{CommandId, MAX_BUFFER_SIZE, Packet, PacketScrambler},
@@ -39,7 +43,7 @@ pub struct Session {
 
     pub account: Option<Account>,
     pub character: Option<Character>,
-    pub mount: Option<Horse>,
+    pub horses: Option<Vec<Horse>>,
 }
 impl Session {
     fn new(socket: TcpStream) -> Self {
@@ -51,7 +55,20 @@ impl Session {
 
             account: None,
             character: None,
-            mount: None,
+            horses: None,
+        }
+    }
+
+    pub fn get_mount(&self) -> Option<&Horse> {
+        if self.horses.is_none() || self.character.is_none() {
+            None
+        } else {
+            self.horses
+                .as_ref()
+                .unwrap()
+                .iter()
+                .filter(|h| h.uid == self.character.as_ref().unwrap().mount_uid)
+                .next()
         }
     }
 
@@ -207,7 +224,7 @@ impl Server {
                                                     .await
                                                 }
                                                 CommandId::AcCmdCLEnterRanch => {
-                                                    EnterRanchHandler::handle_packet(
+                                                    crate::handlers::lobby::enter_ranch::EnterRanchHandler::handle_packet(
                                                         Arc::clone(&server),
                                                         &mut session,
                                                         &packet,
@@ -273,9 +290,49 @@ impl Server {
                                                 _ => Err("Unhandled command".into()),
                                             },
                                             // Ranch server commands
-                                            ServerType::Ranch => {
-                                                Err("Ranch server commands not implemented".into())
-                                            }
+                                            ServerType::Ranch => match packet.command_id {
+                                                CommandId::AcCmdCREnterRanch => {
+                                                    crate::handlers::ranch::enter_ranch::EnterRanchHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRRanchCmdAction => {
+                                                    RanchCmdActionHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRRanchSnapshot => {
+                                                    RanchSnapshotHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRRequestNpcDressList => {
+                                                    RequestNpcDressListHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRRequestStorage => {
+                                                    RequestStorageHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        &mut session,
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                _ => Err("Unhandled command".into()),
+                                            },
                                         };
 
                                         if let Err(e) = handle_result {
@@ -284,6 +341,7 @@ impl Server {
                                                 packet.command_id,
                                                 CommandId::AcCmdCLHeartbeat
                                                     | CommandId::AcCmdCRHeartbeat
+                                                    | CommandId::AcCmdCRRanchSnapshot
                                             );
                                             if !muted_packet {
                                                 eprintln!(

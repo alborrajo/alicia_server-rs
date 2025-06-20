@@ -26,6 +26,24 @@ pub async fn get_character_by_member_no<'a>(
     }
 }
 
+pub async fn get_character_by_id<'a>(
+    transaction: &mut Transaction<'a>,
+    character_id: u32,
+) -> Result<Option<Character>, Box<dyn Error>> {
+    let row_opt = transaction
+        .query_opt(
+            "SELECT * FROM characters WHERE character_id = $1",
+            &[&U32Sql::from(character_id)],
+        )
+        .await?;
+    if let Some(row) = row_opt {
+        let character = Character::try_from_row(&row)?;
+        Ok(Some(character))
+    } else {
+        Ok(None)
+    }
+}
+
 pub async fn insert_character<'a>(
     transaction: &mut Transaction<'a>,
     member_no: u32,

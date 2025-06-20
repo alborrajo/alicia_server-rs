@@ -41,7 +41,7 @@ impl CommandHandler for EnterRanchHandler {
 
         let response = EnterRanchOk {
             ranch_uid: 1234,
-            code: 0x11223344, // This should probably be the packet scrambler code. TODO: Change
+            code: 0, // This should probably be the packet scrambler code. TODO: Change
             address: ranch_address,
         };
         session

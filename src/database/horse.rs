@@ -15,7 +15,7 @@ pub async fn get_horses_by_character_id<'a>(
     let rows = transaction
         .query(
             "SELECT * FROM horses WHERE character_id = $1",
-            &[&character_id],
+            &[&U32Sql::from(character_id)],
         )
         .await?;
     Ok(rows.iter().map(|row| Horse::from_row(row)).collect())

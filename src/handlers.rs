@@ -9,6 +9,7 @@ use crate::{
 };
 
 pub mod lobby;
+pub mod ranch;
 
 pub trait PacketHandler {
     const COMMAND_ID: CommandId;
