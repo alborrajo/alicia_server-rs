@@ -42,19 +42,19 @@ macro_rules! impl_packet_handler {
                 session: &mut crate::server::Session,
                 packet: &crate::packet::Packet,
             ) -> Result<(), String> {
+                println!(
+                    "<<< Recv command {:?}:\n\tLength: {} ({:#x}) bytes",
+                    packet.command_id,
+                    packet.payload.len(),
+                    packet.payload.len(),
+                );
                 let mut cursor = std::io::Cursor::new(&packet.payload);
                 let mut reader = deku::reader::Reader::new(&mut cursor);
                 use deku::DekuReader;
                 let command =
                     <Self as CommandHandler>::CommandType::from_reader_with_ctx(&mut reader, ())
                         .map_err(|e| format!("Failed to deserialize command: {:?}", e))?;
-                println!(
-                    "<<< Recv command {:?}:\n\tLength: {} ({:#x}) bytes\n{:#?}\n",
-                    <Self as crate::handlers::PacketHandler>::COMMAND_ID,
-                    packet.payload.len(),
-                    packet.payload.len(),
-                    command
-                );
+                println!("{:#?}\n", command);
                 Self::handle_command(server, session, &command).await
             }
         }
