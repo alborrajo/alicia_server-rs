@@ -24,6 +24,15 @@ pub struct Parts {
     #[from_row(from = "U8Sql")]
     pub val0: u8,
 }
+impl Parts {
+    pub fn gender(&self) -> Gender {
+        match self.char_id {
+            10 => Gender::Boy,
+            20 => Gender::Girl,
+            _ => Gender::Unspecified,
+        }
+    }
+}
 impl Default for Parts {
     fn default() -> Self {
         Self {

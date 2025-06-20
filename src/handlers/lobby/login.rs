@@ -160,7 +160,10 @@ impl CommandHandler for LoginHandler {
                     })
                     .map_err(|e| format!("Failed to convert nickname to CString: {}", e))?,
                 motd: c"Welcome to Story of Alicia!".to_owned(),
-                profile_gender: Gender::Boy,
+                profile_gender: character
+                    .as_ref()
+                    .map(|c| c.character.parts.gender())
+                    .unwrap_or_default(),
                 status: c"This person is mentally unstable".to_owned(),
                 character_equipment: LengthPrefixedVec {
                     vec: vec![Item {
