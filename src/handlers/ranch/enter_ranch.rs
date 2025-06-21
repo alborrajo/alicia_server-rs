@@ -71,12 +71,12 @@ impl CommandHandler for EnterRanchHandler {
         let ranch = match server.ranches.entry(command.ranch_uid) {
             Entry::Occupied(ranch) => ranch.into_mut(),
             Entry::Vacant(entry) => entry.insert({
-                let (nickname, character_id) = session
+                let nickname = session
                     .lock()
                     .await
                     .character
                     .as_ref()
-                    .map(|c| (c.nickname.to_owned(), c.character_id))
+                    .map(|c| c.nickname.to_owned())
                     .ok_or("Session has no character loaded")?;
                 Ranch {
                     name: format!("{}'s Ranch", nickname),
@@ -162,7 +162,7 @@ impl CommandHandler for EnterRanchHandler {
             ranch_id: command.ranch_uid,
             unk0: c"Unk0".into(),
             ranch_name: CString::new(ranch.name.clone())
-                .map_err(|e| "Failed to convert ranch name to CString")?,
+                .map_err(|_| "Failed to convert ranch name to CString")?,
             horses: LengthPrefixedVec { vec: ranch_horses },
             character: LengthPrefixedVec {
                 vec: ranch_characters,

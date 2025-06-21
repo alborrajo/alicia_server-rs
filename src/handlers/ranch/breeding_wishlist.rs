@@ -3,24 +3,22 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::{
-    commands::ranch::request_npc_dress_list::{RequestNpcDressList, RequestNpcDressListOk},
+    commands::ranch::breeding_wishlist::{BreedingWishlist, BreedingWishlistOk},
     handlers::CommandHandler,
     impl_packet_handler,
     server::{Server, Session},
 };
 
-pub struct RequestNpcDressListHandler {}
-impl CommandHandler for RequestNpcDressListHandler {
-    type CommandType = RequestNpcDressList;
+pub struct BreedingWishlistHandler {}
+impl CommandHandler for BreedingWishlistHandler {
+    type CommandType = BreedingWishlist;
     async fn handle_command(
         _server: Arc<Mutex<Server>>,
         session: Arc<Mutex<Session>>,
-        command: &Self::CommandType,
+        _command: &Self::CommandType,
     ) -> Result<(), String> {
-        let response = RequestNpcDressListOk {
-            ranch_uid: command.ranch_uid,
-            ..Default::default()
-        };
+        // TODO: Implement
+        let response = BreedingWishlistOk::default();
         session
             .lock()
             .await
@@ -29,4 +27,4 @@ impl CommandHandler for RequestNpcDressListHandler {
             .map_err(|e| format!("Failed to send response: {:?}", e))
     }
 }
-impl_packet_handler!(RequestNpcDressListHandler);
+impl_packet_handler!(BreedingWishlistHandler);

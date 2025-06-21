@@ -14,11 +14,18 @@ use crate::commands::{
     },
 };
 
+pub mod breeding_failure_card;
+pub mod breeding_wishlist;
+pub mod enter_breeding_market;
 pub mod enter_ranch;
+pub mod mount_family_tree;
 pub mod ranch_cmd_action;
 pub mod ranch_snapshot;
 pub mod request_npc_dress_list;
 pub mod request_storage;
+pub mod search_stallion;
+pub mod try_breeding;
+pub mod update_mount_nickname;
 
 #[derive(Debug, Default, DekuRead, DekuWrite)]
 pub struct RanchHorse {

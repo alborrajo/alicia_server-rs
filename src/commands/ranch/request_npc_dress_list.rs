@@ -8,16 +8,16 @@ use crate::{
 
 #[derive(Debug, Default, DekuRead, DekuWrite)]
 pub struct RequestNpcDressList {
-    unk0: u32,
+    pub ranch_uid: u32,
 }
 impl_command_traits!(RequestNpcDressList, CommandId::AcCmdCRRequestNpcDressList);
 
 #[derive(Debug, Default, DekuRead, DekuWrite)]
 pub struct RequestNpcDressListOk {
-    unk0: u32,
+    pub ranch_uid: u32,
 
     // Max size 10
-    dress_list: LengthPrefixedVec<1, Item>,
+    pub dress_list: LengthPrefixedVec<1, Item>,
 }
 impl_command_traits!(
     RequestNpcDressListOk,

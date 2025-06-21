@@ -44,7 +44,7 @@ pub struct Horse {
     pub val17: u32,
 }
 
-#[derive(Debug, Default, Clone, DekuRead, DekuWrite, FromRow)]
+#[derive(Debug, Clone, DekuRead, DekuWrite, FromRow)]
 pub struct Parts {
     #[from_row(from = "U8Sql")]
     pub skin_id: u8,
@@ -54,6 +54,26 @@ pub struct Parts {
     pub tail_id: u8,
     #[from_row(from = "U8Sql")]
     pub face_id: u8,
+}
+impl Default for Parts {
+    fn default() -> Self {
+        Self {
+            skin_id: 1,
+            mane_id: 0,
+            tail_id: 0,
+            face_id: 0,
+        }
+    }
+}
+impl Parts {
+    pub fn random() -> Self {
+        Self {
+            skin_id: rand::random_range(1..=15),
+            mane_id: rand::random_range(0..=40),
+            tail_id: rand::random_range(0..=30),
+            face_id: 0,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, DekuRead, DekuWrite, FromRow)]

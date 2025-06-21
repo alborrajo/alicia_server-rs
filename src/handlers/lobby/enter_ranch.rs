@@ -41,8 +41,8 @@ impl CommandHandler for EnterRanchHandler {
             .clone();
 
         let response = EnterRanchOk {
-            ranch_uid: 1234,
-            code: 0, // This should probably be the packet scrambler code. TODO: Change
+            ranch_uid: 1234, // TODO: Send the ranch uid for the player
+            code: 0,         // This should probably be the packet scrambler code. TODO: Change
             address: ranch_address,
         };
         session

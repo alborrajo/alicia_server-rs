@@ -26,9 +26,14 @@ use crate::{
             show_inventory::ShowInventoryHandler,
         },
         ranch::{
-            ranch_cmd_action::RanchCmdActionHandler, ranch_snapshot::RanchSnapshotHandler,
+            breeding_failure_card::BreedingFailureCardHandler,
+            breeding_wishlist::BreedingWishlistHandler,
+            enter_breeding_market::EnterBreedingMarketHandler,
+            mount_family_tree::MountFamilyTreeHandler, ranch_cmd_action::RanchCmdActionHandler,
+            ranch_snapshot::RanchSnapshotHandler,
             request_npc_dress_list::RequestNpcDressListHandler,
-            request_storage::RequestStorageHandler,
+            request_storage::RequestStorageHandler, search_stallion::SearchStallionHandler,
+            try_breeding::TryBreedingHandler, update_mount_nickname::UpdateMountNicknameHandler,
         },
     },
     packet::{CommandId, MAX_BUFFER_SIZE, Packet, PacketScrambler},
@@ -316,8 +321,40 @@ impl Server {
                                             },
                                             // Ranch server commands
                                             ServerType::Ranch => match packet.command_id {
+                                                CommandId::AcCmdCRBreedingFailureCard => {
+                                                    BreedingFailureCardHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        Arc::clone(&session),
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRBreedingWishlist => {
+                                                    BreedingWishlistHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        Arc::clone(&session),
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCREnterBreedingMarket => {
+                                                    EnterBreedingMarketHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        Arc::clone(&session),
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
                                                 CommandId::AcCmdCREnterRanch => {
                                                     crate::handlers::ranch::enter_ranch::EnterRanchHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        Arc::clone(&session),
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRMountFamilyTree => {
+                                                    MountFamilyTreeHandler::handle_packet(
                                                         Arc::clone(&server),
                                                         Arc::clone(&session),
                                                         &packet,
@@ -350,6 +387,30 @@ impl Server {
                                                 }
                                                 CommandId::AcCmdCRRequestStorage => {
                                                     RequestStorageHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        Arc::clone(&session),
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRSearchStallion => {
+                                                    SearchStallionHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        Arc::clone(&session),
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRTryBreeding => {
+                                                    TryBreedingHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        Arc::clone(&session),
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRUpdateMountNickname => {
+                                                    UpdateMountNicknameHandler::handle_packet(
                                                         Arc::clone(&server),
                                                         Arc::clone(&session),
                                                         &packet,

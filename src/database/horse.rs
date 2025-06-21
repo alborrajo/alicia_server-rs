@@ -145,6 +145,98 @@ pub async fn insert_horse<'a>(
     Ok(())
 }
 
+pub async fn update_horse<'a>(
+    transaction: &mut Transaction<'a>,
+    horse: &mut Horse,
+) -> Result<(), Box<dyn Error>> {
+    let rows_affected = transaction
+        .execute(
+            "UPDATE horses SET
+                    tid=$1, name=$2,
+                    skin_id=$3, mane_id=$4, tail_id=$5, face_id=$6,
+                    scale=$7, leg_length=$8, leg_volume=$9, body_length=$10, body_volume=$11,
+                    agility=$12, control=$13, speed=$14, strength=$15, spirit=$16,
+                    rating=$17, class=$18, class_progress=$19, grade=$20, growth_points=$21,
+                    stamina=$22, attractiveness=$23, hunger=$24,
+                    vals0_val0=$25, vals0_val1=$26, vals0_val2=$27, vals0_val3=$28, vals0_val4=$29,
+                    vals0_val5=$30, vals0_val6=$31, vals0_val7=$32, vals0_val8=$33, vals0_val9=$34, vals0_val10=$35,
+                    vals1_val0=$36, vals1_val1=$37, date_of_birth=$38, vals1_val3=$39, vals1_val4=$40,
+                    class_progression=$41, vals1_val5=$42,
+                    potential_level=$43, has_potential=$44, potential_value=$45, vals1_val9=$46,
+                    luck=$47, has_luck=$48, vals1_val12=$49, fatigue=$50, vals1_val14=$51, emblem=$52,
+                    spur_magic_count=$53, jump_count=$54, sliding_time=$55, gliding_distance=$56,
+                    val16=$57, val17=$58
+                WHERE uid=$59",
+            &[
+                &U32Sql::from(horse.tid),
+                &CStringSql::from(horse.name.clone()),
+                &U8Sql::from(horse.parts.skin_id),
+                &U8Sql::from(horse.parts.mane_id),
+                &U8Sql::from(horse.parts.tail_id),
+                &U8Sql::from(horse.parts.face_id),
+                &U8Sql::from(horse.appearance.scale),
+                &U8Sql::from(horse.appearance.leg_length),
+                &U8Sql::from(horse.appearance.leg_volume),
+                &U8Sql::from(horse.appearance.body_length),
+                &U8Sql::from(horse.appearance.body_volume),
+                &U32Sql::from(horse.stats.agility),
+                &U32Sql::from(horse.stats.control),
+                &U32Sql::from(horse.stats.speed),
+                &U32Sql::from(horse.stats.strength),
+                &U32Sql::from(horse.stats.spirit),
+                &U32Sql::from(horse.rating),
+                &U8Sql::from(horse.class),
+                &U8Sql::from(horse.class_progress),
+                &U8Sql::from(horse.grade),
+                &U16Sql::from(horse.growth_points),
+                &U16Sql::from(horse.vals0.stamina),
+                &U16Sql::from(horse.vals0.attractiveness),
+                &U16Sql::from(horse.vals0.hunger),
+                &U16Sql::from(horse.vals0.val0),
+                &U16Sql::from(horse.vals0.val1),
+                &U16Sql::from(horse.vals0.val2),
+                &U16Sql::from(horse.vals0.val3),
+                &U16Sql::from(horse.vals0.val4),
+                &U16Sql::from(horse.vals0.val5),
+                &U16Sql::from(horse.vals0.val6),
+                &U16Sql::from(horse.vals0.val7),
+                &U16Sql::from(horse.vals0.val8),
+                &U16Sql::from(horse.vals0.val9),
+                &U16Sql::from(horse.vals0.val10),
+                &U8Sql::from(horse.vals1.val0),
+                &U32Sql::from(horse.vals1.val1),
+                &U32Sql::from(horse.vals1.date_of_birth),
+                &U8Sql::from(horse.vals1.val3),
+                &U8Sql::from(horse.vals1.val4),
+                &U32Sql::from(horse.vals1.class_progression),
+                &U32Sql::from(horse.vals1.val5),
+                &U8Sql::from(horse.vals1.potential_level),
+                &U8Sql::from(horse.vals1.has_potential),
+                &U8Sql::from(horse.vals1.potential_value),
+                &U8Sql::from(horse.vals1.val9),
+                &U8Sql::from(horse.vals1.luck),
+                &U8Sql::from(horse.vals1.has_luck),
+                &U8Sql::from(horse.vals1.val12),
+                &U16Sql::from(horse.vals1.fatigue),
+                &U16Sql::from(horse.vals1.val14),
+                &U16Sql::from(horse.vals1.emblem),
+                &U32Sql::from(horse.mastery.spur_magic_count),
+                &U32Sql::from(horse.mastery.jump_count),
+                &U32Sql::from(horse.mastery.sliding_time),
+                &U32Sql::from(horse.mastery.gliding_distance),
+                &U32Sql::from(horse.val16),
+                &U32Sql::from(horse.val17),
+                &U32Sql::from(horse.uid),
+            ],
+        )
+        .await?;
+    if rows_affected != 1 {
+        Err(format!("Unexpected number of affected rows: {}", rows_affected).into())
+    } else {
+        Ok(())
+    }
+}
+
 pub async fn remove_horse<'a>(
     transaction: &mut Transaction<'a>,
     horse_uid: u32,
