@@ -12,7 +12,7 @@ pub struct RanchSnapshot {
 }
 impl_command_traits!(RanchSnapshot, CommandId::AcCmdCRRanchSnapshot);
 
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, Clone, DekuRead, DekuWrite)]
 pub struct RanchSnapshotNotify {
     pub ranch_index: u16,
     pub snapshot: Snapshot,

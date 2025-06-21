@@ -87,9 +87,7 @@ impl CommandHandler for EnterRanchHandler {
         };
 
         // Add new player to ranch
-        ranch
-            .character_sessions
-            .push((command.character_uid, Arc::clone(&session)));
+        ranch.character_sessions.push(Arc::clone(&session));
 
         let mut ranch_index = 0;
 
@@ -118,7 +116,7 @@ impl CommandHandler for EnterRanchHandler {
         let (ranch_characters, new_ranch_character) = {
             let mut new_ranch_character: Option<RanchCharacter> = None;
             let mut ranch_characters = Vec::new();
-            for (_ranch_character_id, ranch_session) in ranch.character_sessions.as_slice() {
+            for ranch_session in ranch.character_sessions.as_slice() {
                 ranch_index = ranch_index + 1;
                 let ranch_session = ranch_session.lock().await;
                 let ranch_session_character = ranch_session
@@ -186,6 +184,7 @@ impl CommandHandler for EnterRanchHandler {
         {
             let mut session = session.lock().await;
             session.scrambler.xor_key = 0; // TODO: Find out where in the response this gets set
+            session.ranch_id = Some(command.ranch_uid);
             session
                 .send_command(response)
                 .await
@@ -196,9 +195,13 @@ impl CommandHandler for EnterRanchHandler {
         let notify = EnterRanchNotify {
             character: new_ranch_character,
         };
-        for (ranch_character_id, ranch_session) in ranch.character_sessions.as_slice() {
-            if *ranch_character_id != command.character_uid {
-                let mut ranch_session = ranch_session.lock().await;
+        for ranch_session in ranch.character_sessions.as_slice() {
+            let mut ranch_session = ranch_session.lock().await;
+            if ranch_session
+                .character
+                .as_ref()
+                .is_some_and(|c| c.character_id != command.character_uid)
+            {
                 ranch_session
                     .send_command(notify.clone())
                     .await
