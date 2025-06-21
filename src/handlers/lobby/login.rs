@@ -58,8 +58,8 @@ impl CommandHandler for LoginHandler {
             .lock()
             .await
             .run_in_transaction(async |transaction| {
-                let candidate_account = get_account(transaction, command.member_no).await;
-                if let Ok(candidate_account) = candidate_account {
+                let candidate_account = get_account(transaction, command.member_no).await?;
+                if let Some(candidate_account) = candidate_account {
                     if candidate_account.auth_key == auth_key
                         && candidate_account.login_id == login_id
                     {

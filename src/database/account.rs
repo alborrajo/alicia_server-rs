@@ -15,15 +15,18 @@ pub async fn get_accounts<'a>(
 pub async fn get_account<'a>(
     transaction: &mut Transaction<'a>,
     member_no: u32,
-) -> Result<Account, Box<dyn Error>> {
+) -> Result<Option<Account>, Box<dyn Error>> {
     let row = transaction
-        .query_one(
+        .query_opt(
             "SELECT * FROM accounts WHERE member_no = $1",
             &[&U32Sql::from(member_no)],
         )
         .await?;
-    let account = Account::try_from_row(&row)?;
-    Ok(account)
+    if let Some(row) = row {
+        Ok(Some(Account::try_from_row(&row)?))
+    } else {
+        Ok(None)
+    }
 }
 pub async fn add_account<'a>(
     transaction: &mut Transaction<'a>,
