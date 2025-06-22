@@ -107,7 +107,7 @@ impl<'a> DekuReader<'a, ()> for Packet {
 }
 
 fn encode_magic(command_id: CommandId, length: u16) -> u32 {
-    let id: u16 = BUFFER_JUMBO & 0xFFFF | (command_id as u16) & 0xFFFF;
+    let id: u16 = (command_id as u16) & 0xFFFF;
     let length: u32 = (MAX_BUFFER_SIZE as u32) << 16 | length as u32;
 
     let mut encoded = length;
