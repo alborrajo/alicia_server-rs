@@ -27,6 +27,7 @@ pub mod request_storage;
 pub mod search_stallion;
 pub mod try_breeding;
 pub mod update_mount_nickname;
+pub mod wear_equipment;
 
 #[derive(Debug, Default, DekuRead, DekuWrite)]
 pub struct RanchHorse {

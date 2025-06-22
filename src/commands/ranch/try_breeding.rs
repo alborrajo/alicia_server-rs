@@ -22,7 +22,7 @@ pub struct TryBreedingOk {
     pub parts: Parts,
     pub appearance: Appearance,
     pub stats: Stats,
-    pub unk1: u32,
+    pub updated_carrot_count: u32,
     pub unk2: u8,
     pub unk3: u8,
     pub unk4: u8,

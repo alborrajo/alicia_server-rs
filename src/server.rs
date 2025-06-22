@@ -35,6 +35,7 @@ use crate::{
             request_npc_dress_list::RequestNpcDressListHandler,
             request_storage::RequestStorageHandler, search_stallion::SearchStallionHandler,
             try_breeding::TryBreedingHandler, update_mount_nickname::UpdateMountNicknameHandler,
+            wear_equipment::WearEquipmentHandler,
         },
     },
     packet::{CommandId, MAX_BUFFER_SIZE, Packet, PacketScrambler},
@@ -420,6 +421,14 @@ impl Server {
                                                 }
                                                 CommandId::AcCmdCRUpdateMountNickname => {
                                                     UpdateMountNicknameHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        Arc::clone(&session),
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRWearEquipment => {
+                                                    WearEquipmentHandler::handle_packet(
                                                         Arc::clone(&server),
                                                         Arc::clone(&session),
                                                         &packet,
