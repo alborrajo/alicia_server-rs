@@ -24,7 +24,7 @@ use crate::{
     database::{
         account::{add_account, get_account},
         character::get_character_by_member_no,
-        horse::get_horse_by_uid,
+        horse::{get_horse_by_uid, get_horses_by_character_id},
     },
     entities::account::Account,
     handlers::CommandHandler,
@@ -86,7 +86,12 @@ impl CommandHandler for LoginHandler {
         let mut session = session.lock().await;
         match account {
             Ok(account) => {
-                println!("Logged in as {}", account.login_id.as_str());
+                println!(
+                    "Logged in as '{}' (ID {}) with auth key '{}'",
+                    account.login_id.as_str(),
+                    account.member_no,
+                    account.auth_key
+                );
                 session.account = Some(account);
             }
             Err(error) => {
@@ -104,33 +109,24 @@ impl CommandHandler for LoginHandler {
             }
         }
 
-        let character = database
+        let (character, horses) = database
             .lock()
             .await
             .run_in_transaction(async |transaction| {
-                get_character_by_member_no(transaction, command.member_no).await
+                let character = get_character_by_member_no(transaction, command.member_no).await?;
+                let horses = if let Some(character) = character.as_ref() {
+                    get_horses_by_character_id(transaction, character.character_id).await?
+                } else {
+                    vec![]
+                };
+                Ok((character, horses))
             })
             .await
             .map_err(|e| format!("Failed to fetch character: {}", e))?;
 
-        let mount = if let Some(character) = &character {
-            Some(
-                database
-                    .lock()
-                    .await
-                    .run_in_transaction(async |transaction| {
-                        get_horse_by_uid(transaction, character.mount_uid).await
-                    })
-                    .await
-                    .map_err(|e| format!("Failed to fetch horse: {}", e))?
-                    .ok_or(format!(
-                        "Failed to find horse with UID {} for character '{}' ({})",
-                        character.mount_uid, character.nickname, character.character_id
-                    ))?,
-            )
-        } else {
-            None
-        };
+        let mount = character
+            .as_ref()
+            .and_then(|c| horses.iter().find(|h| h.uid == c.mount_uid));
 
         // Generate packet scrambler key
         let xor_key = rand::random();
@@ -324,7 +320,7 @@ impl CommandHandler for LoginHandler {
                     .as_ref()
                     .map(|c| c.character.clone())
                     .unwrap_or_default(),
-                horse: mount.as_ref().map(|h| h.clone()).unwrap_or_default(),
+                horse: mount.cloned().unwrap_or_default(),
                 val7: Val7 {
                     values: LengthPrefixedVec {
                         vec: vec![
@@ -402,7 +398,7 @@ impl CommandHandler for LoginHandler {
         }
 
         session.character = character;
-        session.horses = mount.map(|h| vec![h]);
+        session.horses = Some(horses);
 
         Ok(())
     }

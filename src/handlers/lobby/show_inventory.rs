@@ -56,12 +56,18 @@ impl CommandHandler for ShowInventoryHandler {
             0x00, 0x02, 0x00, 0x00, 0x00, 0x94, 0x5F, 0x01, 0x02, 0x94, 0x5F, 0x01, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
         ];
-        let pcap = ShowInventoryOk::from_bytes((&pcap_data, 0))
+        let mut pcap = ShowInventoryOk::from_bytes((&pcap_data, 0))
             .map_err(|e| format!("Failed to deserialize pcap: {:?}", e))
             .map(|result| result.1)?;
+
+        let mut session = session.lock().await;
+        pcap.horses.vec = session
+            .horses
+            .as_ref()
+            .ok_or("Player has no horses")?
+            .clone();
+
         session
-            .lock()
-            .await
             .send_command(pcap)
             .await
             .map_err(|e| format!("Failed to send response: {:?}", e))
