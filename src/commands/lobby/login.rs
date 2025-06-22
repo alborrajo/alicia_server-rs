@@ -248,7 +248,7 @@ pub struct Val12Value {
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
 pub struct Val13 {
-    pub values: LengthPrefixedVec<1, Val12Value>,
+    pub values: LengthPrefixedVec<1, Val13Value>,
 }
 
 #[derive(Default, Debug, DekuRead, DekuWrite)]
