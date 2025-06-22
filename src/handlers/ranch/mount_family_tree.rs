@@ -3,7 +3,10 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::{
-    commands::ranch::mount_family_tree::{MountFamilyTree, MountFamilyTreeOk},
+    commands::{
+        LengthPrefixedVec,
+        ranch::mount_family_tree::{MountFamilyTree, MountFamilyTreeItem, MountFamilyTreeOk},
+    },
     handlers::CommandHandler,
     impl_packet_handler,
     server::{Server, Session},
@@ -20,7 +23,22 @@ impl CommandHandler for MountFamilyTreeHandler {
         // TODO: Fetch
         let response = MountFamilyTreeOk {
             uid: command.uid,
-            ..Default::default()
+            items: LengthPrefixedVec {
+                vec: vec![
+                    MountFamilyTreeItem {
+                        unk0: 0,
+                        unk1: c"Parent0".to_owned(),
+                        unk2: 2,
+                        unk3: 3,
+                    },
+                    MountFamilyTreeItem {
+                        unk0: 1,
+                        unk1: c"Parent1".to_owned(),
+                        unk2: 12,
+                        unk3: 13,
+                    },
+                ],
+            },
         };
         session
             .lock()

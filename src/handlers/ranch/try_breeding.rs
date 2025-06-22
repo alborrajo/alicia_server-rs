@@ -101,24 +101,14 @@ impl CommandHandler for TryBreedingHandler {
         let response = TryBreedingOk {
             uid: new_horse.uid,
             tid: new_horse.tid,
-            // wild guesses
-            val: 0,
-            count: 0,
-            unk0: 0,
-            parts: new_horse.parts.clone(),
+            parts: Parts {
+                skin_id: new_horse.parts.skin_id,
+                // TODO: Mane mapping. Foals dont have the same id pool available
+                ..Default::default()
+            },
             appearance: new_horse.appearance.clone(),
             stats: new_horse.stats.clone(),
-            // wild guesses
-            unk1: new_horse.vals1.val5,
-            unk2: new_horse.vals1.potential_level,
-            unk3: new_horse.vals1.has_potential,
-            unk4: new_horse.vals1.potential_value,
-            unk5: new_horse.vals1.val9,
-            unk6: new_horse.vals1.luck,
-            unk7: new_horse.vals1.has_luck,
-            unk8: new_horse.vals1.val12,
-            unk9: new_horse.vals1.fatigue,
-            unk10: 0,
+            ..Default::default()
         };
 
         let mut session = session.lock().await;

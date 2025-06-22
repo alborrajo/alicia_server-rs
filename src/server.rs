@@ -29,6 +29,7 @@ use crate::{
             breeding_failure_card::BreedingFailureCardHandler,
             breeding_wishlist::BreedingWishlistHandler,
             enter_breeding_market::EnterBreedingMarketHandler,
+            leave_breeding_market::LeaveBreedingMarketHandler,
             mount_family_tree::MountFamilyTreeHandler, ranch_cmd_action::RanchCmdActionHandler,
             ranch_snapshot::RanchSnapshotHandler,
             request_npc_dress_list::RequestNpcDressListHandler,
@@ -347,6 +348,14 @@ impl Server {
                                                 }
                                                 CommandId::AcCmdCREnterRanch => {
                                                     crate::handlers::ranch::enter_ranch::EnterRanchHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        Arc::clone(&session),
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRLeaveBreedingMarket => {
+                                                    LeaveBreedingMarketHandler::handle_packet(
                                                         Arc::clone(&server),
                                                         Arc::clone(&session),
                                                         &packet,

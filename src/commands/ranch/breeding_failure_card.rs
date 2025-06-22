@@ -7,6 +7,13 @@ pub struct BreedingFailureCard {}
 impl_command_traits!(BreedingFailureCard, CommandId::AcCmdCRBreedingFailureCard);
 
 #[derive(Debug, Default, DekuRead, DekuWrite)]
+pub struct BreedingFailureCardCancel {}
+impl_command_traits!(
+    BreedingFailureCardCancel,
+    CommandId::AcCmdCRBreedingFailureCardCancel
+);
+
+#[derive(Debug, Default, DekuRead, DekuWrite)]
 pub struct BreedingFailureCardOk {
     pub unk0: u8,
 }

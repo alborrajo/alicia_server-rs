@@ -25,8 +25,8 @@ impl_command_traits!(
 pub struct AvailableHorse {
     pub uid: u32,
     pub tid: u32,
-    pub unk0: u8,
+    pub success: u8,
     pub unk1: u32,
     pub unk2: u8,
-    pub unk3: u8,
+    pub coat_bonus: u8,
 }

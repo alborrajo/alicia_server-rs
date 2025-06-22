@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::{
-    commands::ranch::breeding_failure_card::{BreedingFailureCard, BreedingFailureCardOk},
+    commands::ranch::breeding_failure_card::{BreedingFailureCard, BreedingFailureCardCancel},
     handlers::CommandHandler,
     impl_packet_handler,
     server::{Server, Session},
@@ -18,7 +18,7 @@ impl CommandHandler for BreedingFailureCardHandler {
         _command: &Self::CommandType,
     ) -> Result<(), String> {
         // TODO: The thing
-        let response = BreedingFailureCardOk { unk0: 3 };
+        let response = BreedingFailureCardCancel {};
         session
             .lock()
             .await
