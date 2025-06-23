@@ -5,8 +5,9 @@ use std::{
 };
 
 use deku::{DekuError, DekuReader, DekuWriter, reader::Reader, writer::Writer};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Address {
     pub ip: Ipv4Addr,
     pub port: u16,

@@ -1,8 +1,10 @@
 use std::net::Ipv4Addr;
 
+use serde::{Deserialize, Serialize};
+
 use crate::commands::shared::address::Address;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub lobby_server: ServerSettings,
     pub ranch_server: ServerSettings,
@@ -11,14 +13,14 @@ pub struct Settings {
     pub database: DatabaseSettings,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerSettings {
     pub enabled: bool,
     pub bind_address: String,
     pub announce_address: Address,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatabaseSettings {
     pub url: Option<String>,
     pub wipe_on_startup: bool,
@@ -31,7 +33,7 @@ impl Default for Settings {
                 enabled: true,
                 bind_address: "0.0.0.0:10030".to_owned(),
                 announce_address: Address {
-                    ip: Ipv4Addr::new(127, 0, 0, 1),
+                    ip: Ipv4Addr::new(192, 168, 1, 32),
                     port: 10030,
                 },
             },
@@ -39,7 +41,7 @@ impl Default for Settings {
                 enabled: true,
                 bind_address: "0.0.0.0:10031".to_owned(),
                 announce_address: Address {
-                    ip: Ipv4Addr::new(127, 0, 0, 1),
+                    ip: Ipv4Addr::new(192, 168, 1, 32),
                     port: 10031,
                 },
             },
@@ -47,7 +49,7 @@ impl Default for Settings {
                 enabled: true,
                 bind_address: "0.0.0.0:10032".to_owned(),
                 announce_address: Address {
-                    ip: Ipv4Addr::new(127, 0, 0, 1),
+                    ip: Ipv4Addr::new(192, 168, 1, 32),
                     port: 10032,
                 },
             },
@@ -55,13 +57,13 @@ impl Default for Settings {
                 enabled: true,
                 bind_address: "0.0.0.0:10033".to_owned(),
                 announce_address: Address {
-                    ip: Ipv4Addr::new(127, 0, 0, 1),
+                    ip: Ipv4Addr::new(192, 168, 1, 32),
                     port: 10033,
                 },
             },
             database: DatabaseSettings {
                 url: None,
-                wipe_on_startup: true,
+                wipe_on_startup: false,
             },
         }
     }

@@ -9,7 +9,7 @@ mod settings;
 
 use tokio::{signal, sync::Mutex};
 
-use std::{error::Error, str::FromStr, sync::Arc};
+use std::{error::Error, fs::File, str::FromStr, sync::Arc};
 
 use crate::{
     database::{Database, init_database},
@@ -19,8 +19,23 @@ use crate::{
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // TODO: Load from file
-    let settings = Settings::default();
+    let settings = match File::open("settings.json") {
+        Ok(file) => {
+            // Load settings
+            serde_json::from_reader(file)?
+        }
+        Err(_) => {
+            // Generate settings and store them to file
+            let settings = Settings::default();
+            let file = File::options()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open("settings.json")?;
+            serde_json::to_writer_pretty(file, &settings)?;
+            settings
+        }
+    };
 
     // Set up database
     println!("Setting up database");

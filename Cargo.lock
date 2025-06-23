@@ -28,6 +28,8 @@ dependencies = [
  "postgresql_embedded",
  "pretty-hex",
  "rand 0.9.1",
+ "serde",
+ "serde_json",
  "tokio",
  "tokio-postgres",
 ]
