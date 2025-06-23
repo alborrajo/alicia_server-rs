@@ -12,14 +12,24 @@ pub mod account;
 pub mod character;
 pub mod horse;
 
+const DATABASE_NAME: &str = "alicia";
+const DATABASE_PATH: &str = "database";
+const DATABASE_PASSWORD: &str = "postgres";
+
 pub async fn init_database(
     settings: &DatabaseSettings,
 ) -> Result<(Option<PostgreSQL>, String), Box<dyn Error>> {
     if let Some(url) = &settings.url {
         Ok((None, url.to_owned()))
     } else {
+        let db_base_path = PathBuf::from(DATABASE_PATH);
         let embedded_psql_settings = Settings {
             timeout: Some(Duration::from_secs(60)),
+            temporary: false,
+            password: DATABASE_PASSWORD.into(),
+            password_file: db_base_path.join(".pgpass"),
+            data_dir: db_base_path.join("data"),
+            installation_dir: db_base_path.join("installation"),
             ..Default::default()
         };
         let mut embedded_psql = PostgreSQL::new(embedded_psql_settings);
@@ -36,8 +46,6 @@ pub async fn init_database(
         Ok((Some(embedded_psql), url))
     }
 }
-
-const DATABASE_NAME: &str = "alicia";
 
 pub struct Database {
     db_pool: deadpool_postgres::Pool,
@@ -59,7 +67,18 @@ impl Database {
         let client = db_pool.get().await?;
 
         if db_settings.wipe_on_startup {
-            // TODO: Wipe existing schema
+            // Wipe existing schema
+            let _ = client
+                .batch_execute(
+                    "
+                DROP SCHEMA public CASCADE;
+                CREATE SCHEMA public;
+                GRANT ALL ON SCHEMA public TO postgres;
+                GRANT ALL ON SCHEMA public TO public;
+                COMMENT ON SCHEMA public IS 'standard public schema';
+            ",
+                )
+                .await;
             let schema_path = PathBuf::from("res/schema.sql");
             let schema = tokio::fs::read_to_string(schema_path).await?;
             client.batch_execute(&schema).await?;
