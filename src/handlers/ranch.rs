@@ -4,6 +4,7 @@ pub mod enter_breeding_market;
 pub mod enter_ranch;
 pub mod leave_breeding_market;
 pub mod mount_family_tree;
+pub mod ranch_chat;
 pub mod ranch_cmd_action;
 pub mod ranch_snapshot;
 pub mod request_npc_dress_list;

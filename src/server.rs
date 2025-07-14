@@ -30,8 +30,8 @@ use crate::{
             breeding_wishlist::BreedingWishlistHandler,
             enter_breeding_market::EnterBreedingMarketHandler,
             leave_breeding_market::LeaveBreedingMarketHandler,
-            mount_family_tree::MountFamilyTreeHandler, ranch_cmd_action::RanchCmdActionHandler,
-            ranch_snapshot::RanchSnapshotHandler,
+            mount_family_tree::MountFamilyTreeHandler, ranch_chat::RanchChatHandler,
+            ranch_cmd_action::RanchCmdActionHandler, ranch_snapshot::RanchSnapshotHandler,
             request_npc_dress_list::RequestNpcDressListHandler,
             request_storage::RequestStorageHandler, search_stallion::SearchStallionHandler,
             try_breeding::TryBreedingHandler, update_mount_nickname::UpdateMountNicknameHandler,
@@ -365,6 +365,14 @@ impl Server {
                                                 }
                                                 CommandId::AcCmdCRMountFamilyTree => {
                                                     MountFamilyTreeHandler::handle_packet(
+                                                        Arc::clone(&server),
+                                                        Arc::clone(&session),
+                                                        &packet,
+                                                    )
+                                                    .await
+                                                }
+                                                CommandId::AcCmdCRRanchChat => {
+                                                    RanchChatHandler::handle_packet(
                                                         Arc::clone(&server),
                                                         Arc::clone(&session),
                                                         &packet,
